@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MindAR Video Ajustat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: black;
+      }
+      #ar-container {
+        width: 100vw;
+        height: 100vh;
+      }
+      #status {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        padding: 10px 15px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        font-size: 20px;
+        border-radius: 6px;
+        z-index: 9999;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+          "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+        }
+      }
+    </script>
+    <div id="status">No trobat</div>
+    <div id="ar-container"></div>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { MindARThree } from "mindar-image-three";
+
+      async function start() {
+        const mindarThree = new MindARThree({
+          container: document.querySelector("#ar-container"),
+          imageTargetSrc: "./targets.mind",
+          filterMinCF: 0.8,
+          filterBeta: 0.8,
+        });
+
+        const { renderer, scene, camera } = mindarThree;
+        const anchor = mindarThree.addAnchor(0);
+        const statusEl = document.getElementById("status");
+
+        // Crear element video HTML
+        const video = document.createElement("video");
+        video.src = "./video.mp4"; // el teu vídeo
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = false;
+
+        // Crear textura
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat;
+
+        // Material amb opacitat
+        const material = new THREE.MeshBasicMaterial({
+          map: videoTexture,
+          transparent: true,
+          opacity: 1,
+        });
+
+        // Pla 3D inicial (1x1, ajustarem després)
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        const plane = new THREE.Mesh(geometry, material);
+        anchor.group.add(plane);
+
+        // Ajust automàtic de la mida del pla segons video
+        video.addEventListener("loadedmetadata", () => {
+          const videoRatio = video.videoWidth / video.videoHeight;
+          plane.scale.set(videoRatio * 0.6, 0.6, 0.6); // el pla manté aspect ratio correcte
+        });
+
+        // Variables per animació subtil
+        let clock = new THREE.Clock();
+
+        anchor.onTargetFound = () => {
+          statusEl.textContent = "Trobat";
+          statusEl.style.color = "lime";
+          video.play();
+        };
+
+        anchor.onTargetLost = () => {
+          statusEl.textContent = "No trobat";
+          statusEl.style.color = "red";
+          video.pause();
+        };
+
+        await mindarThree.start();
+
+        renderer.setAnimationLoop(() => {
+          if (video.readyState >= video.HAVE_CURRENT_DATA) {
+            videoTexture.needsUpdate = true;
+          }
+
+          const time = clock.getElapsedTime();
+          plane.rotation.z = Math.sin(time) * 0.01; // lleu rotació
+          plane.position.y = Math.sin(time * 2) * 0.005; // lleu moviment vertical
+
+          renderer.render(scene, camera);
+        });
+      }
+
+      start();
+    </script>
+  </body>
+</html>
