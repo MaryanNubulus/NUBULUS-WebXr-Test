@@ -2,79 +2,176 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>Prova AR Geofencing</title>
+    <title>AR 3D amb Three.js Mòdul</title>
     <style>
       body {
         margin: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        flex-direction: column;
+        overflow: hidden;
         font-family: sans-serif;
-        background: #f0f0f0;
-      }
-      #arrow {
-        width: 100px;
-        height: 100px;
-        border: solid black 4px;
-        border-top: none;
-        border-right: none;
-        transform: rotate(0deg);
-        transition: transform 0.2s ease;
       }
       #info {
-        margin-top: 20px;
-        font-size: 24px;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 10;
+        font-size: 20px;
+      }
+      #start {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 15px 25px;
+        font-size: 18px;
+        z-index: 10;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <div id="arrow"></div>
-    <div id="info">Ubicació...</div>
+    <button id="start">Iniciar AR</button>
+    <div id="info">Prem el botó per iniciar la prova AR.</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf/turf.min.js"></script>
-    <script>
+    <!-- Importem Three.js com a mòdul -->
+    <script type="module">
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
+      import {
+        Vector3,
+        PerspectiveCamera,
+        Scene,
+        WebGLRenderer,
+        ConeGeometry,
+        MeshBasicMaterial,
+        Mesh,
+      } from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
+      // També pots importar més mòduls si necessites
+
+      import * as turf from "https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js";
+
+      const startButton = document.getElementById("start");
       const info = document.getElementById("info");
-      const arrow = document.getElementById("arrow");
 
-      // Punt objectiu
-      const punt = [41.616, 0.623]; // lat, lon
-      const radi = 50; // metres
+      const punt = [41.616, 0.623];
+      const radi = 50;
 
-      function actualitzaPosicio(pos) {
-        const usuari = [pos.coords.latitude, pos.coords.longitude];
+      let scene, camera, renderer, arrow;
+      let userLat = null,
+        userLon = null,
+        deviceAlpha = 0;
 
-        const distance = turf.distance(turf.point(usuari), turf.point(punt), {
-          units: "meters",
-        });
-        const bearing = turf.bearing(turf.point(usuari), turf.point(punt));
-
-        if (distance <= radi) {
-          info.textContent = `Dins del punt! Distància: ${distance.toFixed(
-            1
-          )} m`;
-          arrow.style.display = "none";
-        } else {
-          info.textContent = `Fora del punt! Distància: ${distance.toFixed(
-            1
-          )} m`;
-          arrow.style.display = "block";
-          arrow.style.transform = `rotate(${bearing}deg)`;
+      function calculaBearing() {
+        if (userLat === null || userLon === null) {
+          return { distance: Infinity, bearing: 0 };
         }
+        const from = turf.point([userLat, userLon]);
+        const to = turf.point(punt);
+        const distance = turf.distance(from, to, { units: "meters" });
+        const bearing = turf.bearing(from, to);
+        return { distance, bearing };
       }
 
-      if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(
-          actualitzaPosicio,
-          (err) => {
-            info.textContent = "No es pot obtenir la ubicació.";
-          },
-          { enableHighAccuracy: true, maximumAge: 1000 }
+      function initThree() {
+        scene = new Scene();
+        camera = new PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
         );
-      } else {
-        info.textContent = "Geolocalització no suportada!";
+
+        renderer = new WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0);
+        document.body.appendChild(renderer.domElement);
+
+        const geometry = new ConeGeometry(0.5, 2, 32);
+        const material = new MeshBasicMaterial({ color: 0xff0000 });
+        arrow = new Mesh(geometry, material);
+        arrow.rotation.x = Math.PI / 2;
+        scene.add(arrow);
+
+        camera.position.z = 5;
+
+        animate();
       }
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        if (userLat === null || userLon === null) {
+          info.textContent = "🔄 Obtenint ubicació...";
+          arrow.visible = false;
+        } else {
+          const { distance, bearing } = calculaBearing();
+
+          if (distance <= radi) {
+            info.textContent = `✅ Dins del punt! Distància: ${distance.toFixed(
+              1
+            )} m`;
+            arrow.visible = false;
+          } else {
+            arrow.visible = true;
+            info.textContent = `📍 Fora! Distància: ${distance.toFixed(1)} m`;
+            const rotation = THREE.MathUtils.degToRad(bearing - deviceAlpha);
+            arrow.rotation.z = rotation;
+          }
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      function initCameraStream() {
+        const video = document.createElement("video");
+        video.style.position = "fixed";
+        video.style.top = "0";
+        video.style.left = "0";
+        video.style.width = "100%";
+        video.style.height = "100%";
+        video.style.objectFit = "cover";
+        video.autoplay = true;
+        video.playsInline = true;
+        document.body.appendChild(video);
+
+        navigator.mediaDevices
+          .getUserMedia({ video: { facingMode: "environment" }, audio: false })
+          .then((stream) => {
+            video.srcObject = stream;
+          })
+          .catch((err) => {
+            info.textContent = "❌ No s’ha pogut accedir a la càmera.";
+          });
+      }
+
+      function initSensors() {
+        if (navigator.geolocation) {
+          navigator.geolocation.watchPosition(
+            (pos) => {
+              userLat = pos.coords.latitude;
+              userLon = pos.coords.longitude;
+            },
+            (err) => {
+              info.textContent = "❌ No s’ha pogut obtenir la ubicació.";
+            },
+            { enableHighAccuracy: true, maximumAge: 1000 }
+          );
+        }
+
+        window.addEventListener("deviceorientation", (e) => {
+          deviceAlpha = e.alpha || 0;
+        });
+      }
+
+      startButton.addEventListener("click", () => {
+        startButton.style.display = "none";
+        info.textContent = "🔄 Iniciant AR...";
+        initCameraStream();
+        initThree();
+        initSensors();
+      });
     </script>
   </body>
 </html>
