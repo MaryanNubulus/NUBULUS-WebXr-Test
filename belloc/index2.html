@@ -2,7 +2,7 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>MindAR Video Ajustat</title>
+    <title>MindAR 3D Clip-Path Shape</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       body {
@@ -25,6 +25,20 @@
         border-radius: 6px;
         z-index: 9999;
       }
+      #sound-btn {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 20px;
+        background: #222;
+        color: white;
+        font-size: 18px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        z-index: 9999;
+      }
     </style>
   </head>
   <body>
@@ -37,8 +51,10 @@
         }
       }
     </script>
+
     <div id="status">No trobat</div>
     <div id="ar-container"></div>
+    <button id="sound-btn">Activar sonido</button>
 
     <script type="module">
       import * as THREE from "three";
@@ -56,40 +72,121 @@
         const anchor = mindarThree.addAnchor(0);
         const statusEl = document.getElementById("status");
 
-        // Crear element video HTML
+        // --- Crear Vídeo ---
         const video = document.createElement("video");
-        video.src = "./video.mp4"; // el teu vídeo
+        video.src = "./video.mp4";
         video.loop = true;
         video.playsInline = true;
         video.autoplay = false;
+        video.muted = true;
 
-        // Crear textura
+        // --- Textura del vídeo ---
         const videoTexture = new THREE.VideoTexture(video);
         videoTexture.minFilter = THREE.LinearFilter;
         videoTexture.magFilter = THREE.LinearFilter;
         videoTexture.format = THREE.RGBAFormat;
 
-        // Material amb opacitat
-        const material = new THREE.MeshBasicMaterial({
-          map: videoTexture,
-          transparent: true,
-          opacity: 1,
-        });
+        // --- Funció per convertir clip-path (%) a Shape(0..1) ---
+        function shapeFromPercentPoints(pointsPercent) {
+          const shape = new THREE.Shape();
+          pointsPercent.forEach(([px, py], i) => {
+            const x = px / 100;
+            const y = py / 100;
+            if (i === 0) shape.moveTo(x, y);
+            else shape.lineTo(x, y);
+          });
+          shape.closePath();
+          return shape;
+        }
 
-        // Pla 3D inicial (1x1, ajustarem després)
-        const geometry = new THREE.PlaneGeometry(1, 1);
-        const plane = new THREE.Mesh(geometry, material);
-        anchor.group.add(plane);
+        // --- Punts del clip-path ---
+        const clipPoints = [
+          [51, 11],
+          [98, 42],
+          [99, 91],
+          [1, 90],
+          [3, 41],
+        ];
 
-        // Ajust automàtic de la mida del pla segons video
+        let clipMesh = null;
+
         video.addEventListener("loadedmetadata", () => {
           const videoRatio = video.videoWidth / video.videoHeight;
-          plane.scale.set(videoRatio * 0.6, 0.6, 0.6); // el pla manté aspect ratio correcte
+
+          // shape 0..1
+          const shape01 = shapeFromPercentPoints(clipPoints);
+
+          // transformació a coordenades 3D
+          const pts = shape01.getPoints();
+          const transformedShape = new THREE.Shape();
+          pts.forEach((p, i) => {
+            const nx = (p.x - 0.5) * videoRatio;
+            const ny = 0.5 - p.y;
+            if (i === 0) transformedShape.moveTo(nx, ny);
+            else transformedShape.lineTo(nx, ny);
+          });
+          transformedShape.closePath();
+
+          // extrusió
+          const extrudeSettings = {
+            depth: 0.06,
+            bevelEnabled: false,
+            curveSegments: 12,
+          };
+
+          const geom = new THREE.ExtrudeBufferGeometry(
+            transformedShape,
+            extrudeSettings
+          );
+
+          // calcular UVs
+          geom.computeBoundingBox();
+          const bbox = geom.boundingBox;
+          const min = bbox.min;
+          const max = bbox.max;
+          const sizeX = max.x - min.x;
+          const sizeY = max.y - min.y;
+
+          const posAttr = geom.attributes.position;
+          const uvArray = new Float32Array(posAttr.count * 2);
+          for (let i = 0; i < posAttr.count; i++) {
+            const x = posAttr.getX(i);
+            const y = posAttr.getY(i);
+            uvArray[i * 2] = (x - min.x) / sizeX;
+            uvArray[i * 2 + 1] = (y - min.y) / sizeY;
+          }
+          geom.setAttribute("uv", new THREE.BufferAttribute(uvArray, 2));
+
+          // materials: front/back vídeo + laterals foscos
+          const frontMaterial = new THREE.MeshBasicMaterial({
+            map: videoTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+
+          const sideMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            roughness: 0.9,
+            metalness: 0.05,
+          });
+
+          clipMesh = new THREE.Mesh(geom, [frontMaterial, sideMaterial]);
+
+          // escalar al tamany final
+          const finalHeight = 0.42;
+          clipMesh.scale.y = finalHeight;
+          clipMesh.scale.x = videoRatio * finalHeight;
+
+          anchor.group.add(clipMesh);
         });
 
-        // Variables per animació subtil
-        let clock = new THREE.Clock();
+        // --- Llums per les vores 3D ---
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(0, 1, 1);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
+        // --- Events MindAR ---
         anchor.onTargetFound = () => {
           statusEl.textContent = "Trobat";
           statusEl.style.color = "lime";
@@ -102,16 +199,262 @@
           video.pause();
         };
 
+        // --- Botó so ---
+        const soundBtn = document.getElementById("sound-btn");
+        soundBtn.addEventListener("click", () => {
+          video.muted = false;
+          video.play();
+          soundBtn.style.display = "none";
+        });
+
         await mindarThree.start();
+
+        const clock = new THREE.Clock();
 
         renderer.setAnimationLoop(() => {
           if (video.readyState >= video.HAVE_CURRENT_DATA) {
             videoTexture.needsUpdate = true;
           }
 
-          const time = clock.getElapsedTime();
-          plane.rotation.z = Math.sin(time) * 0.01; // lleu rotació
-          plane.position.y = Math.sin(time * 2) * 0.005; // lleu moviment vertical
+          // animació suau opcional
+          if (clipMesh) {
+            const t = clock.getElapsedTime();
+            clipMesh.rotation.z = Math.sin(t) * 0.01;
+            clipMesh.position.y = Math.sin(t * 2) * 0.005;
+          }
+
+          renderer.render(scene, camera);
+        });
+      }
+
+      start();
+    </script>
+  </body>
+</html>
+<!DOCTYPE html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MindAR 3D Clip-Path Shape</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: black;
+      }
+      #ar-container {
+        width: 100vw;
+        height: 100vh;
+      }
+      #status {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        padding: 10px 15px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        font-size: 20px;
+        border-radius: 6px;
+        z-index: 9999;
+      }
+      #sound-btn {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 20px;
+        background: #222;
+        color: white;
+        font-size: 18px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        z-index: 9999;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+          "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+        }
+      }
+    </script>
+
+    <div id="status">No trobat</div>
+    <div id="ar-container"></div>
+    <button id="sound-btn">Activar sonido</button>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { MindARThree } from "mindar-image-three";
+
+      async function start() {
+        const mindarThree = new MindARThree({
+          container: document.querySelector("#ar-container"),
+          imageTargetSrc: "./targets.mind",
+          filterMinCF: 0.8,
+          filterBeta: 0.8,
+        });
+
+        const { renderer, scene, camera } = mindarThree;
+        const anchor = mindarThree.addAnchor(0);
+        const statusEl = document.getElementById("status");
+
+        // --- Crear Vídeo ---
+        const video = document.createElement("video");
+        video.src = "./video.mp4";
+        video.loop = true;
+        video.playsInline = true;
+        video.autoplay = false;
+        video.muted = true;
+
+        // --- Textura del vídeo ---
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat;
+
+        // --- Funció per convertir clip-path (%) a Shape(0..1) ---
+        function shapeFromPercentPoints(pointsPercent) {
+          const shape = new THREE.Shape();
+          pointsPercent.forEach(([px, py], i) => {
+            const x = px / 100;
+            const y = py / 100;
+            if (i === 0) shape.moveTo(x, y);
+            else shape.lineTo(x, y);
+          });
+          shape.closePath();
+          return shape;
+        }
+
+        // --- Punts del clip-path ---
+        const clipPoints = [
+          [51, 11],
+          [98, 42],
+          [99, 91],
+          [1, 90],
+          [3, 41],
+        ];
+
+        let clipMesh = null;
+
+        video.addEventListener("loadedmetadata", () => {
+          const videoRatio = video.videoWidth / video.videoHeight;
+
+          // shape 0..1
+          const shape01 = shapeFromPercentPoints(clipPoints);
+
+          // transformació a coordenades 3D
+          const pts = shape01.getPoints();
+          const transformedShape = new THREE.Shape();
+          pts.forEach((p, i) => {
+            const nx = (p.x - 0.5) * videoRatio;
+            const ny = 0.5 - p.y;
+            if (i === 0) transformedShape.moveTo(nx, ny);
+            else transformedShape.lineTo(nx, ny);
+          });
+          transformedShape.closePath();
+
+          // extrusió
+          const extrudeSettings = {
+            depth: 0.06,
+            bevelEnabled: false,
+            curveSegments: 12,
+          };
+
+          const geom = new THREE.ExtrudeBufferGeometry(
+            transformedShape,
+            extrudeSettings
+          );
+
+          // calcular UVs
+          geom.computeBoundingBox();
+          const bbox = geom.boundingBox;
+          const min = bbox.min;
+          const max = bbox.max;
+          const sizeX = max.x - min.x;
+          const sizeY = max.y - min.y;
+
+          const posAttr = geom.attributes.position;
+          const uvArray = new Float32Array(posAttr.count * 2);
+          for (let i = 0; i < posAttr.count; i++) {
+            const x = posAttr.getX(i);
+            const y = posAttr.getY(i);
+            uvArray[i * 2] = (x - min.x) / sizeX;
+            uvArray[i * 2 + 1] = (y - min.y) / sizeY;
+          }
+          geom.setAttribute("uv", new THREE.BufferAttribute(uvArray, 2));
+
+          // materials: front/back vídeo + laterals foscos
+          const frontMaterial = new THREE.MeshBasicMaterial({
+            map: videoTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+
+          const sideMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            roughness: 0.9,
+            metalness: 0.05,
+          });
+
+          clipMesh = new THREE.Mesh(geom, [frontMaterial, sideMaterial]);
+
+          // escalar al tamany final
+          const finalHeight = 0.42;
+          clipMesh.scale.y = finalHeight;
+          clipMesh.scale.x = videoRatio * finalHeight;
+
+          anchor.group.add(clipMesh);
+        });
+
+        // --- Llums per les vores 3D ---
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(0, 1, 1);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+        // --- Events MindAR ---
+        anchor.onTargetFound = () => {
+          statusEl.textContent = "Trobat";
+          statusEl.style.color = "lime";
+          video.play();
+        };
+
+        anchor.onTargetLost = () => {
+          statusEl.textContent = "No trobat";
+          statusEl.style.color = "red";
+          video.pause();
+        };
+
+        // --- Botó so ---
+        const soundBtn = document.getElementById("sound-btn");
+        soundBtn.addEventListener("click", () => {
+          video.muted = false;
+          video.play();
+          soundBtn.style.display = "none";
+        });
+
+        await mindarThree.start();
+
+        const clock = new THREE.Clock();
+
+        renderer.setAnimationLoop(() => {
+          if (video.readyState >= video.HAVE_CURRENT_DATA) {
+            videoTexture.needsUpdate = true;
+          }
+
+          // animació suau opcional
+          if (clipMesh) {
+            const t = clock.getElapsedTime();
+            clipMesh.rotation.z = Math.sin(t) * 0.01;
+            clipMesh.position.y = Math.sin(t * 2) * 0.005;
+          }
 
           renderer.render(scene, camera);
         });
