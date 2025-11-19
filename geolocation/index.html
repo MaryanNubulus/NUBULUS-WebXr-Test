@@ -2,175 +2,80 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>AR 3D amb Three.js Mòdul</title>
+    <title>Distància i brúixola modular</title>
     <style>
       body {
-        margin: 0;
-        overflow: hidden;
         font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
       }
       #info {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        color: white;
-        background: rgba(0, 0, 0, 0.5);
-        padding: 10px;
-        border-radius: 5px;
-        z-index: 10;
-        font-size: 20px;
+        font-size: 18px;
+        text-align: center;
+        white-space: pre-line;
+        margin-bottom: 20px;
       }
       #start {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        padding: 15px 25px;
+        padding: 10px 20px;
         font-size: 18px;
-        z-index: 10;
         cursor: pointer;
+        margin-bottom: 20px;
+      }
+      #bruixola {
+        width: 200px;
+        height: 200px;
+        border: 2px solid black;
+        border-radius: 50%;
+        position: relative;
+      }
+      #fletxa {
+        width: 4px;
+        height: 80px;
+        background: red;
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform-origin: bottom center;
+        transform: translateX(-50%) rotate(0deg);
       }
     </style>
   </head>
   <body>
-    <button id="start">Iniciar AR</button>
-    <div id="info">Prem el botó per iniciar la prova AR.</div>
+    <button id="start">Iniciar localització</button>
+    <div id="info">
+      Prem el botó per obtenir la ubicació i veure la brúixola.
+    </div>
+    <div id="bruixola">
+      <div id="fletxa"></div>
+    </div>
 
-    <!-- Importem Three.js com a mòdul -->
+    <!-- Turf.js global -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+
+    <!-- Scripts modulars -->
     <script type="module">
-      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
-      import {
-        Vector3,
-        PerspectiveCamera,
-        Scene,
-        WebGLRenderer,
-        ConeGeometry,
-        MeshBasicMaterial,
-        Mesh,
-      } from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
-      // També pots importar més mòduls si necessites
-
-      import * as turf from "https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js";
+      import { initGeolocation, setTargetPoint } from "./geolocation.js";
+      import { initCompass, updateCompass } from "./compass.js";
 
       const startButton = document.getElementById("start");
       const info = document.getElementById("info");
+      const fletxa = document.getElementById("fletxa");
 
-      const punt = [41.616, 0.623];
-      const radi = 50;
+      // Punt objectiu i radi
+      const punt = [0.623, 41.616]; // [lon, lat]
+      const radi = 50; // metres
 
-      let scene, camera, renderer, arrow;
-      let userLat = null,
-        userLon = null,
-        deviceAlpha = 0;
-
-      function calculaBearing() {
-        if (userLat === null || userLon === null) {
-          return { distance: Infinity, bearing: 0 };
-        }
-        const from = turf.point([userLat, userLon]);
-        const to = turf.point(punt);
-        const distance = turf.distance(from, to, { units: "meters" });
-        const bearing = turf.bearing(from, to);
-        return { distance, bearing };
-      }
-
-      function initThree() {
-        scene = new Scene();
-        camera = new PerspectiveCamera(
-          75,
-          window.innerWidth / window.innerHeight,
-          0.1,
-          1000
-        );
-
-        renderer = new WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setClearColor(0x000000, 0);
-        document.body.appendChild(renderer.domElement);
-
-        const geometry = new ConeGeometry(0.5, 2, 32);
-        const material = new MeshBasicMaterial({ color: 0xff0000 });
-        arrow = new Mesh(geometry, material);
-        arrow.rotation.x = Math.PI / 2;
-        scene.add(arrow);
-
-        camera.position.z = 5;
-
-        animate();
-      }
-
-      function animate() {
-        requestAnimationFrame(animate);
-
-        if (userLat === null || userLon === null) {
-          info.textContent = "🔄 Obtenint ubicació...";
-          arrow.visible = false;
-        } else {
-          const { distance, bearing } = calculaBearing();
-
-          if (distance <= radi) {
-            info.textContent = `✅ Dins del punt! Distància: ${distance.toFixed(
-              1
-            )} m`;
-            arrow.visible = false;
-          } else {
-            arrow.visible = true;
-            info.textContent = `📍 Fora! Distància: ${distance.toFixed(1)} m`;
-            const rotation = THREE.MathUtils.degToRad(bearing - deviceAlpha);
-            arrow.rotation.z = rotation;
-          }
-        }
-
-        renderer.render(scene, camera);
-      }
-
-      function initCameraStream() {
-        const video = document.createElement("video");
-        video.style.position = "fixed";
-        video.style.top = "0";
-        video.style.left = "0";
-        video.style.width = "100%";
-        video.style.height = "100%";
-        video.style.objectFit = "cover";
-        video.autoplay = true;
-        video.playsInline = true;
-        document.body.appendChild(video);
-
-        navigator.mediaDevices
-          .getUserMedia({ video: { facingMode: "environment" }, audio: false })
-          .then((stream) => {
-            video.srcObject = stream;
-          })
-          .catch((err) => {
-            info.textContent = "❌ No s’ha pogut accedir a la càmera.";
-          });
-      }
-
-      function initSensors() {
-        if (navigator.geolocation) {
-          navigator.geolocation.watchPosition(
-            (pos) => {
-              userLat = pos.coords.latitude;
-              userLon = pos.coords.longitude;
-            },
-            (err) => {
-              info.textContent = "❌ No s’ha pogut obtenir la ubicació.";
-            },
-            { enableHighAccuracy: true, maximumAge: 1000 }
-          );
-        }
-
-        window.addEventListener("deviceorientation", (e) => {
-          deviceAlpha = e.alpha || 0;
-        });
-      }
+      setTargetPoint(punt, radi, info, fletxa);
 
       startButton.addEventListener("click", () => {
         startButton.style.display = "none";
-        info.textContent = "🔄 Iniciant AR...";
-        initCameraStream();
-        initThree();
-        initSensors();
+        info.textContent = "🔄 Obtenint ubicació i orientació...";
+        initGeolocation(updateCompass);
+        initCompass(fletxa);
       });
     </script>
   </body>
