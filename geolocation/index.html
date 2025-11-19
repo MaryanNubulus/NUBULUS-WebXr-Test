@@ -2,16 +2,16 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>Distància i brúixola modular</title>
+    <title>Fletxa direccional cap al punt</title>
     <style>
       body {
+        margin: 0;
         font-family: sans-serif;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         height: 100vh;
-        margin: 0;
       }
       #info {
         font-size: 18px;
@@ -25,47 +25,37 @@
         cursor: pointer;
         margin-bottom: 20px;
       }
-      #bruixola {
-        width: 200px;
-        height: 200px;
-        border: 2px solid black;
-        border-radius: 50%;
-        position: relative;
-      }
       #fletxa {
-        width: 4px;
-        height: 80px;
-        background: red;
+        width: 0;
+        height: 0;
+        border-left: 20px solid transparent;
+        border-right: 20px solid transparent;
+        border-bottom: 40px solid red;
         position: absolute;
-        top: 20px;
+        top: 60%;
         left: 50%;
-        transform-origin: bottom center;
-        transform: translateX(-50%) rotate(0deg);
+        transform-origin: 50% 80%;
+        transform: translate(-50%, -50%) rotate(0deg);
+        display: none; /* només quan estigui fora del radi */
+        z-index: 100;
       }
     </style>
   </head>
   <body>
-    <button id="start">Iniciar localització</button>
-    <div id="info">
-      Prem el botó per obtenir la ubicació i veure la brúixola.
-    </div>
-    <div id="bruixola">
-      <div id="fletxa"></div>
-    </div>
+    <button id="start">Iniciar AR</button>
+    <div id="info">Prem el botó per obtenir la ubicació i veure la fletxa.</div>
+    <div id="fletxa"></div>
 
-    <!-- Turf.js global -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
 
-    <!-- Scripts modulars -->
     <script type="module">
       import { initGeolocation, setTargetPoint } from "./geolocation.js";
-      import { initCompass, updateCompass } from "./compass.js";
+      import { initArrow, updateArrow } from "./arrow.js";
 
       const startButton = document.getElementById("start");
       const info = document.getElementById("info");
       const fletxa = document.getElementById("fletxa");
 
-      // Punt objectiu i radi
       const punt = [0.623, 41.616]; // [lon, lat]
       const radi = 50; // metres
 
@@ -74,8 +64,8 @@
       startButton.addEventListener("click", () => {
         startButton.style.display = "none";
         info.textContent = "🔄 Obtenint ubicació i orientació...";
-        initGeolocation(updateCompass);
-        initCompass(fletxa);
+        initGeolocation(updateArrow); // refresc cada segon
+        initArrow(fletxa);
       });
     </script>
   </body>
