@@ -97,7 +97,7 @@
 
         video.addEventListener("loadedmetadata", () => {
           const videoRatio = video.videoWidth / video.videoHeight;
-          plane.scale.set(videoRatio * 0.6, 0.6, 0.6);
+          plane.scale.set(videoRatio * 0.42, 0.42, 0.42);
         });
 
         let clock = new THREE.Clock();
