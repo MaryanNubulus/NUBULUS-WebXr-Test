@@ -85,7 +85,7 @@
         // Ajust automàtic de la mida del pla segons video
         video.addEventListener("loadedmetadata", () => {
           const videoRatio = video.videoWidth / video.videoHeight;
-          plane.scale.set(videoRatio * 0.6, 0.6, 0.6); // el pla manté aspect ratio correcte
+          plane.scale.set(videoRatio * 1.7, 1.7, 1.7); // el pla manté aspect ratio correcte
         });
 
         // Variables per animació subtil
