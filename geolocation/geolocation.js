@@ -5,6 +5,7 @@ let targetPoint = null;
 let targetRadius = null;
 let infoDiv = null;
 let arrowElem = null;
+let intervalId = null;
 
 export function setTargetPoint(point, radius, infoElement, arrowElement) {
   targetPoint = point;
@@ -19,22 +20,39 @@ export function initGeolocation(onUpdate) {
     return;
   }
 
-  navigator.geolocation.watchPosition(
-    (pos) => {
-      userLat = pos.coords.latitude;
-      userLon = pos.coords.longitude;
-      calcularDistancia(onUpdate);
-    },
-    (err) => {
-      if (err.code === 1) {
-        infoDiv.textContent =
-          "❌ Permís denegat. Permet l'accés a la ubicació i recarrega la pàgina.";
-      } else {
-        infoDiv.textContent = `❌ Error al obtenir la ubicació: ${err.message}`;
-      }
-    },
-    { enableHighAccuracy: true, maximumAge: 1000 }
-  );
+  // Funció que obté la posició i calcula distància
+  function updatePosition() {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        userLat = pos.coords.latitude;
+        userLon = pos.coords.longitude;
+        calcularDistancia(onUpdate);
+      },
+      (err) => {
+        if (err.code === 1) {
+          infoDiv.textContent =
+            "❌ Permís denegat. Permet l'accés a la ubicació i recarrega la pàgina.";
+        } else {
+          infoDiv.textContent = `❌ Error al obtenir la ubicació: ${err.message}`;
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 0 }
+    );
+  }
+
+  // Comprovació inicial immediata
+  updatePosition();
+
+  // Comprova la posició cada segon
+  intervalId = setInterval(updatePosition, 1000);
+}
+
+// Opcional: funció per aturar el refresc
+export function stopGeolocation() {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
 }
 
 function calcularDistancia(onUpdate) {
