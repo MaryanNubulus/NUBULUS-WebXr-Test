@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Prova AR Geofencing</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        flex-direction: column;
+        font-family: sans-serif;
+        background: #f0f0f0;
+      }
+      #arrow {
+        width: 100px;
+        height: 100px;
+        border: solid black 4px;
+        border-top: none;
+        border-right: none;
+        transform: rotate(0deg);
+        transition: transform 0.2s ease;
+      }
+      #info {
+        margin-top: 20px;
+        font-size: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="arrow"></div>
+    <div id="info">Ubicació...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf/turf.min.js"></script>
+    <script>
+      const info = document.getElementById("info");
+      const arrow = document.getElementById("arrow");
+
+      // Punt objectiu
+      const punt = [41.616, 0.623]; // lat, lon
+      const radi = 50; // metres
+
+      function actualitzaPosicio(pos) {
+        const usuari = [pos.coords.latitude, pos.coords.longitude];
+
+        const distance = turf.distance(turf.point(usuari), turf.point(punt), {
+          units: "meters",
+        });
+        const bearing = turf.bearing(turf.point(usuari), turf.point(punt));
+
+        if (distance <= radi) {
+          info.textContent = `Dins del punt! Distància: ${distance.toFixed(
+            1
+          )} m`;
+          arrow.style.display = "none";
+        } else {
+          info.textContent = `Fora del punt! Distància: ${distance.toFixed(
+            1
+          )} m`;
+          arrow.style.display = "block";
+          arrow.style.transform = `rotate(${bearing}deg)`;
+        }
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+          actualitzaPosicio,
+          (err) => {
+            info.textContent = "No es pot obtenir la ubicació.";
+          },
+          { enableHighAccuracy: true, maximumAge: 1000 }
+        );
+      } else {
+        info.textContent = "Geolocalització no suportada!";
+      }
+    </script>
+  </body>
+</html>
