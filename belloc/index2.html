@@ -25,20 +25,6 @@
         border-radius: 6px;
         z-index: 9999;
       }
-      #sound-btn {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 12px 20px;
-        background: #222;
-        color: white;
-        font-size: 18px;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        z-index: 9999;
-      }
     </style>
   </head>
   <body>
@@ -53,7 +39,6 @@
     </script>
     <div id="status">No trobat</div>
     <div id="ar-container"></div>
-    <button id="sound-btn">Activar sonido</button>
 
     <script type="module">
       import * as THREE from "three";
@@ -71,13 +56,12 @@
         const anchor = mindarThree.addAnchor(0);
         const statusEl = document.getElementById("status");
 
-        // Crear element vídeo
+        // Crear element video HTML
         const video = document.createElement("video");
-        video.src = "./video.mp4";
+        video.src = "./video.mp4"; // el teu vídeo
         video.loop = true;
         video.playsInline = true;
         video.autoplay = false;
-        video.muted = true; // Inicialment silenciado per autoplay
 
         // Crear textura
         const videoTexture = new THREE.VideoTexture(video);
@@ -85,21 +69,25 @@
         videoTexture.magFilter = THREE.LinearFilter;
         videoTexture.format = THREE.RGBAFormat;
 
+        // Material amb opacitat
         const material = new THREE.MeshBasicMaterial({
           map: videoTexture,
           transparent: true,
           opacity: 1,
         });
 
+        // Pla 3D inicial (1x1, ajustarem després)
         const geometry = new THREE.PlaneGeometry(1, 1);
         const plane = new THREE.Mesh(geometry, material);
         anchor.group.add(plane);
 
+        // Ajust automàtic de la mida del pla segons video
         video.addEventListener("loadedmetadata", () => {
           const videoRatio = video.videoWidth / video.videoHeight;
-          plane.scale.set(videoRatio * 0.6, 0.6, 0.6);
+          plane.scale.set(videoRatio * 0.6, 0.6, 0.6); // el pla manté aspect ratio correcte
         });
 
+        // Variables per animació subtil
         let clock = new THREE.Clock();
 
         anchor.onTargetFound = () => {
@@ -114,14 +102,6 @@
           video.pause();
         };
 
-        // Botó per activar so
-        const soundBtn = document.getElementById("sound-btn");
-        soundBtn.addEventListener("click", () => {
-          video.muted = false;
-          video.play();
-          soundBtn.style.display = "none"; // Ocultar botó després d'activar so
-        });
-
         await mindarThree.start();
 
         renderer.setAnimationLoop(() => {
@@ -130,8 +110,8 @@
           }
 
           const time = clock.getElapsedTime();
-          plane.rotation.z = Math.sin(time) * 0.01;
-          plane.position.y = Math.sin(time * 2) * 0.005;
+          plane.rotation.z = Math.sin(time) * 0.01; // lleu rotació
+          plane.position.y = Math.sin(time * 2) * 0.005; // lleu moviment vertical
 
           renderer.render(scene, camera);
         });
