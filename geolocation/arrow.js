@@ -5,12 +5,28 @@ let arrowElem = null;
 export function initArrow(arrowElement) {
   arrowElem = arrowElement;
 
-  requestDeviceOrientationPermission();
+  // Safari iOS: demanar permisos
+  if (
+    typeof DeviceOrientationEvent !== "undefined" &&
+    typeof DeviceOrientationEvent.requestPermission === "function"
+  ) {
+    DeviceOrientationEvent.requestPermission()
+      .then((response) => {
+        if (response === "granted") {
+          window.addEventListener("deviceorientation", handleOrientation);
+        } else {
+          alert("❌ Permís de sensors denegat. La fletxa no es mostrarà.");
+        }
+      })
+      .catch(console.error);
+  } else {
+    window.addEventListener("deviceorientation", handleOrientation);
+  }
+}
 
-  window.addEventListener("deviceorientation", (e) => {
-    deviceAlpha = e.alpha || 0;
-    updateArrow();
-  });
+function handleOrientation(event) {
+  deviceAlpha = event.alpha || 0;
+  updateArrow();
 }
 
 export function updateArrow() {
