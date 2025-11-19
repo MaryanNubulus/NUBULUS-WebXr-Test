@@ -39,11 +39,8 @@ export function initGeolocation(onUpdate) {
     );
   }
 
-  // Comprovació inicial immediata
-  updatePosition();
-
-  // Crida la posició cada segon
-  intervalId = setInterval(updatePosition, 1000);
+  updatePosition(); // crida inicial
+  intervalId = setInterval(updatePosition, 1000); // cada segon
 }
 
 export function stopGeolocation() {
