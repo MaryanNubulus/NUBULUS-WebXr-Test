@@ -91,13 +91,52 @@
           opacity: 1,
         });
 
-        const geometry = new THREE.PlaneGeometry(1, 1);
+        // Crear forma personalitzada basada en el polígon
+        // Coordenades normalitzades (0-1) convertides a coordenades centrades (-0.5 a 0.5)
+        const shape = new THREE.Shape();
+        shape.moveTo(0.51 - 0.5, -(0.11 - 0.5)); // 51% 11%
+        shape.lineTo(0.98 - 0.5, -(0.42 - 0.5)); // 98% 42%
+        shape.lineTo(0.99 - 0.5, -(0.91 - 0.5)); // 99% 91%
+        shape.lineTo(0.01 - 0.5, -(0.9 - 0.5)); // 1% 90%
+        shape.lineTo(0.03 - 0.5, -(0.41 - 0.5)); // 3% 41%
+        shape.lineTo(0.51 - 0.5, -(0.11 - 0.5)); // Tancar la forma
+
+        const geometry = new THREE.ShapeGeometry(shape);
+
+        // Configurar coordenades UV manualmente per mapejar el vídeo correctament
+        const uvs = geometry.attributes.uv;
+        const positions = geometry.attributes.position;
+
+        // Trobar els límits de la forma
+        let minX = Infinity,
+          maxX = -Infinity;
+        let minY = Infinity,
+          maxY = -Infinity;
+
+        for (let i = 0; i < positions.count; i++) {
+          const x = positions.getX(i);
+          const y = positions.getY(i);
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+
+        // Normalitzar les coordenades UV per cobrir tot el vídeo
+        for (let i = 0; i < uvs.count; i++) {
+          const x = positions.getX(i);
+          const y = positions.getY(i);
+          const u = (x - minX) / (maxX - minX);
+          const v = (y - minY) / (maxY - minY); // Sense invertir
+          uvs.setXY(i, u, v);
+        }
+
         const plane = new THREE.Mesh(geometry, material);
         anchor.group.add(plane);
 
         video.addEventListener("loadedmetadata", () => {
           const videoRatio = video.videoWidth / video.videoHeight;
-          plane.scale.set(videoRatio * 0.42, 0.42, 0.42);
+          plane.scale.set(videoRatio * 0.45, 0.45, 0.45);
         });
 
         let clock = new THREE.Clock();
