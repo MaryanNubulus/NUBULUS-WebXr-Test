@@ -2,7 +2,7 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>AR Geolocalització WebGL</title>
+    <title>AR Geolocalitzat WebGL</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       body {
@@ -49,21 +49,30 @@
     <button id="geoBtn" class="btn">Activa Geolocalització</button>
     <button id="camBtn" class="btn">Activa Càmera</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
 
-    <script>
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
       let scene, camera, renderer, model, video, videoTexture;
       let userPosition = null;
-      const targetLat = 41.63173974826957;
-      const targetLon = 0.7782910920069297;
+      const targetLat = 41.616;
+      const targetLon = 0.894;
       const visibilityDistance = 10; // metres
 
       const info = document.getElementById("info");
       const geoBtn = document.getElementById("geoBtn");
       const camBtn = document.getElementById("camBtn");
 
-      // PAS 1: Geolocalització
+      // --- PAS 1: Geolocalització ---
       geoBtn.addEventListener("click", () => {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
@@ -80,17 +89,19 @@
         );
       });
 
-      // PAS 2: Càmera
+      // --- PAS 2: Càmera ---
       camBtn.addEventListener("click", async () => {
         camBtn.style.display = "none";
-        info.innerText = "Iniciant AR...";
+        info.innerText = "Iniciant càmera...";
 
-        // Accés manual a la càmera
         try {
+          // Crear element vídeo
           video = document.createElement("video");
           video.autoplay = true;
-          video.playsInline = true;
+          video.playsInline = true; // essencial per iOS
           video.muted = true;
+
+          // Demanar càmera manualment
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: "environment" },
             audio: false,
@@ -118,7 +129,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Fons de càmera
+        // Fons amb vídeo de la càmera
         videoTexture = new THREE.VideoTexture(video);
         const videoMaterial = new THREE.MeshBasicMaterial({
           map: videoTexture,
@@ -133,12 +144,12 @@
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         scene.add(light);
 
-        // Carrega model
-        const loader = new THREE.GLTFLoader();
+        // Carregar model GLB
+        const loader = new GLTFLoader();
         loader.load("test.glb", (gltf) => {
           model = gltf.scene;
           model.scale.set(1, 1, 1);
-          model.position.set(0, 2, 0); // inicial
+          model.position.set(0, 2, 0); // posició inicial
           scene.add(model);
         });
 
@@ -151,9 +162,9 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       }
 
-      // Converteix lat/lon a metres aproximats respecte a l'usuari
+      // Converteix lat/lon a metres respecte a l'usuari
       function latLonToMeters(userLat, userLon, objLat, objLon) {
-        const R = 6371000; // metres
+        const R = 6371000;
         const dLat = ((objLat - userLat) * Math.PI) / 180;
         const dLon = ((objLon - userLon) * Math.PI) / 180;
         const latRad = (userLat * Math.PI) / 180;
@@ -166,17 +177,14 @@
         requestAnimationFrame(animate);
 
         if (userPosition && model) {
-          const pos = userPosition;
           const meters = latLonToMeters(
-            pos.latitude,
-            pos.longitude,
+            userPosition.latitude,
+            userPosition.longitude,
             targetLat,
             targetLon
           );
-
-          // Actualitza posició del model
           model.position.x = meters.x;
-          model.position.z = -meters.z; // invertim perquè caminem cap a l'objecte
+          model.position.z = -meters.z;
 
           const distance = Math.sqrt(meters.x ** 2 + meters.z ** 2);
           model.visible = distance <= visibilityDistance;
