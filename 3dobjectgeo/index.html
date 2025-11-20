@@ -89,7 +89,7 @@
 
       // --- PAS 1: Geolocalització ---
       geoBtn.addEventListener("click", () => {
-        navigator.geolocation.getCurrentPosition(
+        navigator.geolocation.watchPosition(
           (pos) => {
             userPosition = pos.coords;
             info.innerText = "Geolocalització activada!";
@@ -100,7 +100,7 @@
             info.innerText = "Permís GPS denegat";
             console.error(err);
           },
-          { enableHighAccuracy: true }
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
         );
       });
 
