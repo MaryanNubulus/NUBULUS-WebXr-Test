@@ -2,93 +2,45 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>Direcció cap al punt</title>
+    <title>User Info</title>
     <style>
-      body {
-        margin: 0;
-        background: #000;
-        overflow: hidden;
-      }
-
-      #status {
+      #info {
         position: fixed;
-        top: 12px;
-        left: 12px;
-        font-size: 3.2rem;
-        font-weight: bold;
+        top: 10px;
+        left: 10px;
         color: white;
-        z-index: 9999;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 20px;
+        white-space: pre-line;
       }
-
-      #fletxa {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform-origin: center center;
-        transform: translate(-50%, -50%) rotate(0deg);
-        width: 90px;
-        height: 90px;
-        z-index: 999;
-        display: none;
+      body {
+        background: black;
       }
-
-      #fletxa svg {
-        width: 100%;
-        height: 100%;
-        fill: #ff4747;
-      }
-
-      #start {
+      button {
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        padding: 12px 22px;
+        padding: 12px 20px;
         font-size: 20px;
-        border-radius: 10px;
-        border: none;
-        background: white;
-        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <div id="status">Esperant...</div>
-
-    <button id="start">Iniciar</button>
-
-    <div id="fletxa">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-        <path
-          fill-rule="evenodd"
-          d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-4.5-.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5z"
-        />
-      </svg>
+    <div id="info">
+      Latitud: <span id="lat">---</span>
+      <br />
+      Longitud: <span id="lon">---</span> <br /><br />
+      Orientació (°): <span id="alpha">---</span> <br /><br />
+      Beta: <span id="beta">---</span>
+      <br />
+      Gamma: <span id="gamma">---</span>
     </div>
 
-    <!-- TurfJS -->
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+    <button id="start">INICIAR</button>
 
-    <script type="module">
-      import { initGeolocation, setTargetPoint } from "./geolocation.js";
-      import { initArrow, updateArrow } from "./arrow.js";
-
-      const status = document.getElementById("status");
-      const fletxa = document.getElementById("fletxa");
-      const startBtn = document.getElementById("start");
-
-      // 👉 Punt objectiu
-      const punt = [0.778373, 41.631604];
-      const radi = 5; // metres
-
-      setTargetPoint(punt, radi, status, fletxa);
-
-      startBtn.addEventListener("click", () => {
-        startBtn.style.display = "none";
-        status.textContent = "Carregant...";
-        initGeolocation(updateArrow);
-        initArrow(fletxa);
-      });
-    </script>
+    <script type="module" src="./main.js"></script>
   </body>
 </html>
