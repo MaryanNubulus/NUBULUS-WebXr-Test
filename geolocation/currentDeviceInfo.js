@@ -68,7 +68,9 @@ export class CurrentDeviceInfo {
 
   normalizeTilt(value) {
     if (value === null) return 0;
-    return (value / 90).toFixed(2);
+    let normalized = 1 - Math.abs(value / 90);
+    if (value < 0) normalized *= -1;
+    return normalized.toFixed(2);
   }
 
   getCardinal(deg) {
