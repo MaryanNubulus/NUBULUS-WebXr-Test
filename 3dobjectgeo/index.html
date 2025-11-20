@@ -2,14 +2,14 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>AR Geolocalització Manual</title>
+    <title>AR Geolocalització WebGL</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       body {
         margin: 0;
         overflow: hidden;
-        font-family: sans-serif;
         background: black;
+        font-family: sans-serif;
       }
       #info {
         position: absolute;
@@ -37,7 +37,7 @@
         top: 40%;
         background: #007bff;
       }
-      #arBtn {
+      #camBtn {
         top: 50%;
         background: #28a745;
         display: none;
@@ -47,55 +47,62 @@
   <body>
     <div id="info">Prem els botons per activar AR</div>
     <button id="geoBtn" class="btn">Activa Geolocalització</button>
-    <button id="arBtn" class="btn">Activa Càmera / AR</button>
+    <button id="camBtn" class="btn">Activa Càmera</button>
 
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-        }
-      }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
 
-    <script type="module">
-      import * as THREE from "three";
-      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-      import { ARButton } from "three/addons/webxr/ARButton.js";
-
-      let scene, camera, renderer, model;
+    <script>
+      let scene, camera, renderer, model, video, videoTexture;
       let userPosition = null;
-      const targetLat = 41.63173924707858;
-      const targetLon = 0.7783105380211052;
-      const visibilityDistance = 20; // metres
+      const targetLat = 41.616;
+      const targetLon = 0.894;
+      const visibilityDistance = 10; // metres
 
       const info = document.getElementById("info");
       const geoBtn = document.getElementById("geoBtn");
-      const arBtn = document.getElementById("arBtn");
+      const camBtn = document.getElementById("camBtn");
 
-      // --- PAS 1: Geolocalització ---
+      // PAS 1: Geolocalització
       geoBtn.addEventListener("click", () => {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             userPosition = pos.coords;
             info.innerText = "Geolocalització activada!";
             geoBtn.style.display = "none";
-            arBtn.style.display = "block";
+            camBtn.style.display = "block";
           },
           (err) => {
-            info.innerText = "Permís geolocalització denegat";
+            info.innerText = "Permís GPS denegat";
             console.error(err);
           },
           { enableHighAccuracy: true }
         );
       });
 
-      // --- PAS 2: Càmera / AR ---
-      arBtn.addEventListener("click", () => {
-        arBtn.style.display = "none";
+      // PAS 2: Càmera
+      camBtn.addEventListener("click", async () => {
+        camBtn.style.display = "none";
         info.innerText = "Iniciant AR...";
-        initAR();
-        animate();
+
+        // Accés manual a la càmera
+        try {
+          video = document.createElement("video");
+          video.autoplay = true;
+          video.playsInline = true;
+          video.muted = true;
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" },
+            audio: false,
+          });
+          video.srcObject = stream;
+
+          initAR();
+          animate();
+        } catch (err) {
+          info.innerText = "Permís de càmera denegat";
+          console.error(err);
+        }
       });
 
       function initAR() {
@@ -104,29 +111,35 @@
           70,
           window.innerWidth / window.innerHeight,
           0.01,
-          20
+          1000
         );
 
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // ARButton: només crea sessió després del clic manual
-        document.body.appendChild(
-          ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
-        );
+        // Fons de càmera
+        videoTexture = new THREE.VideoTexture(video);
+        const videoMaterial = new THREE.MeshBasicMaterial({
+          map: videoTexture,
+        });
+        const videoGeometry = new THREE.PlaneGeometry(2, 2);
+        const videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
+        videoMesh.material.depthTest = false;
+        videoMesh.material.depthWrite = false;
+        videoMesh.position.z = -1;
+        scene.add(videoMesh);
 
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-        light.position.set(0.5, 1, 0.25);
         scene.add(light);
 
-        // Carrega model .glb
-        const loader = new GLTFLoader();
+        // Carrega model
+        const loader = new THREE.GLTFLoader();
         loader.load("test.glb", (gltf) => {
           model = gltf.scene;
           model.scale.set(1, 1, 1);
-          model.position.set(0, 2, 0); // altura 2 metres
+          model.position.set(0, 2, 0); // inicial
+          scene.add(model);
         });
 
         window.addEventListener("resize", onWindowResize);
@@ -138,37 +151,39 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       }
 
-      function animate() {
-        renderer.setAnimationLoop(render);
+      // Converteix lat/lon a metres aproximats respecte a l'usuari
+      function latLonToMeters(userLat, userLon, objLat, objLon) {
+        const R = 6371000; // metres
+        const dLat = ((objLat - userLat) * Math.PI) / 180;
+        const dLon = ((objLon - userLon) * Math.PI) / 180;
+        const latRad = (userLat * Math.PI) / 180;
+        const x = dLon * R * Math.cos(latRad);
+        const z = dLat * R;
+        return { x, z };
       }
 
-      function render() {
+      function animate() {
+        requestAnimationFrame(animate);
+
         if (userPosition && model) {
-          navigator.geolocation.getCurrentPosition((pos) => {
-            const userLat = pos.coords.latitude;
-            const userLon = pos.coords.longitude;
+          const pos = userPosition;
+          const meters = latLonToMeters(
+            pos.latitude,
+            pos.longitude,
+            targetLat,
+            targetLon
+          );
 
-            // Calcula distància aproximada (Haversine)
-            const R = 6371000;
-            const φ1 = (userLat * Math.PI) / 180;
-            const φ2 = (targetLat * Math.PI) / 180;
-            const Δφ = ((targetLat - userLat) * Math.PI) / 180;
-            const Δλ = ((targetLon - userLon) * Math.PI) / 180;
+          // Actualitza posició del model
+          model.position.x = meters.x;
+          model.position.z = -meters.z; // invertim perquè caminem cap a l'objecte
 
-            const a =
-              Math.sin(Δφ / 2) ** 2 +
-              Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            const distance = R * c;
+          const distance = Math.sqrt(meters.x ** 2 + meters.z ** 2);
+          model.visible = distance <= visibilityDistance;
 
-            if (distance <= visibilityDistance) {
-              if (!scene.children.includes(model)) scene.add(model);
-              info.innerText = "Objecte visible!";
-            } else {
-              if (scene.children.includes(model)) scene.remove(model);
-              info.innerText = "Mou-te prop de l’objecte...";
-            }
-          });
+          info.innerText = model.visible
+            ? "Objecte visible!"
+            : "Mou-te prop de l’objecte...";
         }
 
         renderer.render(scene, camera);
