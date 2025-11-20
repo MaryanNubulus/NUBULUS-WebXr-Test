@@ -2,19 +2,19 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>AR Geolocalització amb Permisos</title>
+    <title>AR amb permisos manuals</title>
     <style>
       body {
         margin: 0;
         overflow: hidden;
         font-family: sans-serif;
       }
-      #startButton {
+      .btn {
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        padding: 20px 40px;
+        padding: 15px 30px;
         font-size: 18px;
         background: #007bff;
         color: white;
@@ -22,6 +22,8 @@
         border-radius: 10px;
         cursor: pointer;
         z-index: 100;
+        display: block;
+        margin-bottom: 10px;
       }
       #info {
         position: absolute;
@@ -33,33 +35,34 @@
     </style>
   </head>
   <body>
-    <div id="info">Prem el botó per iniciar AR</div>
-    <button id="startButton">Inicia AR</button>
+    <div id="info">Prem els botons per activar permisos</div>
+    <button id="geoButton" class="btn">Activa Geolocalització</button>
+    <button id="arButton" class="btn" style="display: none">
+      Activa AR / Càmera
+    </button>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/webxr/ARButton.js"></script>
 
     <script>
-      let scene, camera, renderer;
-      let model;
-      const targetLat = 41.631742736305654;
-      const targetLon = 0.778287764516331;
-      const visibilityDistance = 20; // metres
-
-      const startButton = document.getElementById("startButton");
+      let scene, camera, renderer, model;
+      let userPosition = null;
+      const targetLat = 41.616;
+      const targetLon = 0.894;
+      const visibilityDistance = 10;
       const infoDiv = document.getElementById("info");
+      const geoButton = document.getElementById("geoButton");
+      const arButton = document.getElementById("arButton");
 
-      startButton.addEventListener("click", () => {
-        startButton.style.display = "none";
-        infoDiv.innerText = "Demana permisos i carrega AR...";
-
-        // Demana geolocalització
+      // PAS 1: Permís geolocalització
+      geoButton.addEventListener("click", () => {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            initAR();
-            animate();
-            infoDiv.innerText = "Mou-te prop de l'objecte...";
+            userPosition = position.coords;
+            infoDiv.innerText = "Geolocalització activada!";
+            geoButton.style.display = "none";
+            arButton.style.display = "block";
           },
           (err) => {
             infoDiv.innerText = "Permís de geolocalització denegat";
@@ -67,6 +70,15 @@
           },
           { enableHighAccuracy: true }
         );
+      });
+
+      // PAS 2: Permís càmera / AR
+      arButton.addEventListener("click", () => {
+        arButton.style.display = "none";
+        infoDiv.innerText = "Iniciant AR...";
+
+        initAR();
+        animate();
       });
 
       function initAR() {
@@ -83,18 +95,19 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // ARButton demana automàticament accés a la càmera
-        document.body.appendChild(
-          ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
-        );
+        // ARButton només crea la sessió quan l'usuari ja ha fet clic manual
+        const arbtn = ARButton.createButton(renderer, {
+          requiredFeatures: ["hit-test"],
+        });
+        document.body.appendChild(arbtn);
 
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         light.position.set(0.5, 1, 0.25);
         scene.add(light);
 
-        // Carrega el model .glb
+        // Carrega model
         const loader = new THREE.GLTFLoader();
-        loader.load("test.glb", function (gltf) {
+        loader.load("test.glb", (gltf) => {
           model = gltf.scene;
           model.scale.set(1, 1, 1);
           model.position.set(0, 2, 0); // altura de 2 metres
@@ -114,13 +127,12 @@
       }
 
       function render() {
-        if (navigator.geolocation && model) {
+        if (userPosition && model) {
           navigator.geolocation.getCurrentPosition(function (position) {
             const userLat = position.coords.latitude;
             const userLon = position.coords.longitude;
 
-            // Calcula distància aproximada (Haversine)
-            const R = 6371000; // metres
+            const R = 6371000;
             const φ1 = (userLat * Math.PI) / 180;
             const φ2 = (targetLat * Math.PI) / 180;
             const Δφ = ((targetLat - userLat) * Math.PI) / 180;
