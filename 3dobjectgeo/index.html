@@ -2,11 +2,25 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>AR Geolocalització amb Three.js</title>
+    <title>AR Geolocalització amb Botó</title>
     <style>
       body {
         margin: 0;
         overflow: hidden;
+        font-family: sans-serif;
+      }
+      #startButton {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px 40px;
+        font-size: 18px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
       }
       #info {
         position: absolute;
@@ -18,7 +32,9 @@
     </style>
   </head>
   <body>
-    <div id="info">Mou-te prop de l'objecte...</div>
+    <div id="info">Prem el botó per iniciar AR</div>
+    <button id="startButton">Inicia AR</button>
+
     <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/webxr/ARButton.js"></script>
@@ -26,12 +42,35 @@
     <script>
       let scene, camera, renderer;
       let model;
-      const targetLat = 41.63174373868759;
-      const targetLon = 0.7783051988738677;
-      const visibilityDistance = 20;
+      const targetLat = 41.616; // Latitud de l'objecte
+      const targetLon = 0.894; // Longitud de l'objecte
+      const visibilityDistance = 10; // metres
 
-      init();
-      animate();
+      const startButton = document.getElementById("startButton");
+      const infoDiv = document.getElementById("info");
+
+      startButton.addEventListener("click", () => {
+        startAR();
+      });
+
+      function startAR() {
+        startButton.style.display = "none";
+        infoDiv.innerText = "Carregant AR...";
+
+        // Demana geolocalització
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            infoDiv.innerText = "Mou-te prop de l'objecte...";
+            init();
+            animate();
+          },
+          (err) => {
+            infoDiv.innerText = "Permís de geolocalització denegat";
+            console.error(err);
+          },
+          { enableHighAccuracy: true }
+        );
+      }
 
       function init() {
         scene = new THREE.Scene();
@@ -60,7 +99,7 @@
         loader.load("test.glb", function (gltf) {
           model = gltf.scene;
           model.scale.set(1, 1, 1);
-          model.position.set(0, 1.75, 0); // altura de 1.75 metres
+          model.position.set(0, 2, 0); // altura de 2 metres
         });
 
         window.addEventListener("resize", onWindowResize, false);
@@ -76,32 +115,31 @@
         renderer.setAnimationLoop(render);
       }
 
-      function render(timestamp, frame) {
+      function render() {
         if (navigator.geolocation && model) {
           navigator.geolocation.getCurrentPosition(function (position) {
             const userLat = position.coords.latitude;
             const userLon = position.coords.longitude;
 
-            // Calcula la distància aproximada en metres (Haversine simplificat)
-            const R = 6371000; // radi de la Terra en metres
+            // Calcula distància aproximada
+            const R = 6371000; // metres
             const φ1 = (userLat * Math.PI) / 180;
             const φ2 = (targetLat * Math.PI) / 180;
             const Δφ = ((targetLat - userLat) * Math.PI) / 180;
             const Δλ = ((targetLon - userLon) * Math.PI) / 180;
 
             const a =
-              Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+              Math.sin(Δφ / 2) ** 2 +
+              Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             const distance = R * c;
 
             if (distance <= visibilityDistance) {
               if (!scene.children.includes(model)) scene.add(model);
-              document.getElementById("info").innerText = "Objecte visible!";
+              infoDiv.innerText = "Objecte visible!";
             } else {
               if (scene.children.includes(model)) scene.remove(model);
-              document.getElementById("info").innerText =
-                "Mou-te prop de l'objecte...";
+              infoDiv.innerText = "Mou-te prop de l'objecte...";
             }
           });
         }
