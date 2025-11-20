@@ -78,6 +78,7 @@
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
       let scene, camera, renderer, model, video, videoTexture;
       let userPosition = null;
+      let deviceOrientation = 0; // Orientació del dispositiu (alpha)
       const targetLat = 41.631736995249575;
       const targetLon = 0.7782826945720215;
       const visibilityDistance = 10; // metres
@@ -121,6 +122,9 @@
           });
           video.srcObject = stream;
 
+          // Iniciar sensor d'orientació
+          initOrientation();
+
           initAR();
           animate();
         } catch (err) {
@@ -128,6 +132,35 @@
           console.error(err);
         }
       });
+
+      // --- Sensor d'orientació ---
+      async function initOrientation() {
+        // Per iOS 13+ cal demanar permís
+        if (
+          typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function"
+        ) {
+          try {
+            const permission = await DeviceOrientationEvent.requestPermission();
+            if (permission === "granted") {
+              window.addEventListener("deviceorientation", handleOrientation);
+            } else {
+              info.innerText += " (Orientació denegada)";
+            }
+          } catch (err) {
+            console.error("Error permisos orientació:", err);
+          }
+        } else {
+          // Android i altres
+          window.addEventListener("deviceorientation", handleOrientation);
+        }
+      }
+
+      function handleOrientation(event) {
+        if (event.alpha !== null) {
+          deviceOrientation = event.alpha; // 0-360 graus (0 = Nord)
+        }
+      }
 
       function initAR() {
         scene = new THREE.Scene();
@@ -202,11 +235,16 @@
 
           info.innerText = model.visible
             ? "Objecte visible!"
-            : `Mou-te prop de l’objecte... (${Math.round(distance)} m)`;
+            : `Mou-te prop de l'objecte... (${Math.round(distance)} m)`;
 
-          // Rotar indicador cap a l'objecte
-          const angle = Math.atan2(meters.x, meters.z) * (180 / Math.PI);
-          indicator.style.transform = `translateX(-50%) translateY(-50%) rotate(${angle}deg)`;
+          // Calcular angle absolut cap a l'objecte (bearing)
+          const bearing = Math.atan2(meters.x, meters.z) * (180 / Math.PI);
+
+          // Ajustar amb l'orientació del dispositiu
+          // bearing - deviceOrientation dona l'angle relatiu a on apunta el telèfon
+          const relativeAngle = bearing - deviceOrientation;
+
+          indicator.style.transform = `translateX(-50%) translateY(-50%) rotate(${relativeAngle}deg)`;
           indicator.style.display = model.visible ? "none" : "block";
         }
 
