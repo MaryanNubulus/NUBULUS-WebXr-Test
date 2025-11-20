@@ -156,7 +156,7 @@
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         scene.add(light);
 
-        const loader = new THREE.GLTFLoader();
+        const loader = new GLTFLoader();
         loader.load("test.glb", (gltf) => {
           model = gltf.scene;
           model.scale.set(1, 1, 1);
