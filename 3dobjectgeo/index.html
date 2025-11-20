@@ -2,28 +2,14 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>AR amb permisos manuals</title>
+    <title>AR Geolocalització Manual</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       body {
         margin: 0;
         overflow: hidden;
         font-family: sans-serif;
-      }
-      .btn {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        padding: 15px 30px;
-        font-size: 18px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        z-index: 100;
-        display: block;
-        margin-bottom: 10px;
+        background: black;
       }
       #info {
         position: absolute;
@@ -31,52 +17,83 @@
         left: 10px;
         color: white;
         z-index: 100;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 5px 10px;
+        border-radius: 6px;
+      }
+      .btn {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 15px 30px;
+        font-size: 18px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        z-index: 100;
+        color: white;
+      }
+      #geoBtn {
+        top: 40%;
+        background: #007bff;
+      }
+      #arBtn {
+        top: 50%;
+        background: #28a745;
+        display: none;
       }
     </style>
   </head>
   <body>
-    <div id="info">Prem els botons per activar permisos</div>
-    <button id="geoButton" class="btn">Activa Geolocalització</button>
-    <button id="arButton" class="btn" style="display: none">
-      Activa AR / Càmera
-    </button>
+    <div id="info">Prem els botons per activar AR</div>
+    <button id="geoBtn" class="btn">Activa Geolocalització</button>
+    <button id="arBtn" class="btn">Activa Càmera / AR</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/webxr/ARButton.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
 
-    <script>
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import { ARButton } from "three/addons/webxr/ARButton.js";
+
       let scene, camera, renderer, model;
       let userPosition = null;
-      const targetLat = 41.616;
-      const targetLon = 0.894;
-      const visibilityDistance = 10;
-      const infoDiv = document.getElementById("info");
-      const geoButton = document.getElementById("geoButton");
-      const arButton = document.getElementById("arButton");
+      const targetLat = 41.63173924707858;
+      const targetLon = 0.7783105380211052;
+      const visibilityDistance = 20; // metres
 
-      // PAS 1: Permís geolocalització
-      geoButton.addEventListener("click", () => {
+      const info = document.getElementById("info");
+      const geoBtn = document.getElementById("geoBtn");
+      const arBtn = document.getElementById("arBtn");
+
+      // --- PAS 1: Geolocalització ---
+      geoBtn.addEventListener("click", () => {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
-            userPosition = position.coords;
-            infoDiv.innerText = "Geolocalització activada!";
-            geoButton.style.display = "none";
-            arButton.style.display = "block";
+          (pos) => {
+            userPosition = pos.coords;
+            info.innerText = "Geolocalització activada!";
+            geoBtn.style.display = "none";
+            arBtn.style.display = "block";
           },
           (err) => {
-            infoDiv.innerText = "Permís de geolocalització denegat";
+            info.innerText = "Permís geolocalització denegat";
             console.error(err);
           },
           { enableHighAccuracy: true }
         );
       });
 
-      // PAS 2: Permís càmera / AR
-      arButton.addEventListener("click", () => {
-        arButton.style.display = "none";
-        infoDiv.innerText = "Iniciant AR...";
-
+      // --- PAS 2: Càmera / AR ---
+      arBtn.addEventListener("click", () => {
+        arBtn.style.display = "none";
+        info.innerText = "Iniciant AR...";
         initAR();
         animate();
       });
@@ -95,25 +112,24 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // ARButton només crea la sessió quan l'usuari ja ha fet clic manual
-        const arbtn = ARButton.createButton(renderer, {
-          requiredFeatures: ["hit-test"],
-        });
-        document.body.appendChild(arbtn);
+        // ARButton: només crea sessió després del clic manual
+        document.body.appendChild(
+          ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
+        );
 
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         light.position.set(0.5, 1, 0.25);
         scene.add(light);
 
-        // Carrega model
-        const loader = new THREE.GLTFLoader();
+        // Carrega model .glb
+        const loader = new GLTFLoader();
         loader.load("test.glb", (gltf) => {
           model = gltf.scene;
           model.scale.set(1, 1, 1);
-          model.position.set(0, 2, 0); // altura de 2 metres
+          model.position.set(0, 2, 0); // altura 2 metres
         });
 
-        window.addEventListener("resize", onWindowResize, false);
+        window.addEventListener("resize", onWindowResize);
       }
 
       function onWindowResize() {
@@ -128,10 +144,11 @@
 
       function render() {
         if (userPosition && model) {
-          navigator.geolocation.getCurrentPosition(function (position) {
-            const userLat = position.coords.latitude;
-            const userLon = position.coords.longitude;
+          navigator.geolocation.getCurrentPosition((pos) => {
+            const userLat = pos.coords.latitude;
+            const userLon = pos.coords.longitude;
 
+            // Calcula distància aproximada (Haversine)
             const R = 6371000;
             const φ1 = (userLat * Math.PI) / 180;
             const φ2 = (targetLat * Math.PI) / 180;
@@ -146,10 +163,10 @@
 
             if (distance <= visibilityDistance) {
               if (!scene.children.includes(model)) scene.add(model);
-              infoDiv.innerText = "Objecte visible!";
+              info.innerText = "Objecte visible!";
             } else {
               if (scene.children.includes(model)) scene.remove(model);
-              infoDiv.innerText = "Mou-te prop de l'objecte...";
+              info.innerText = "Mou-te prop de l’objecte...";
             }
           });
         }
