@@ -64,10 +64,18 @@
     <button id="geoBtn" class="btn">Activa Geolocalització</button>
     <button id="camBtn" class="btn">Activa Càmera</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
 
-    <script>
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
       let scene, camera, renderer, model, video, videoTexture;
       let userPosition = null;
       const targetLat = 41.631736995249575;
