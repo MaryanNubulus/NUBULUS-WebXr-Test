@@ -2,7 +2,7 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>AR Geolocalització amb Botó</title>
+    <title>AR Geolocalització amb Permisos</title>
     <style>
       body {
         margin: 0;
@@ -21,6 +21,7 @@
         border: none;
         border-radius: 10px;
         cursor: pointer;
+        z-index: 100;
       }
       #info {
         position: absolute;
@@ -42,27 +43,23 @@
     <script>
       let scene, camera, renderer;
       let model;
-      const targetLat = 41.616; // Latitud de l'objecte
-      const targetLon = 0.894; // Longitud de l'objecte
-      const visibilityDistance = 10; // metres
+      const targetLat = 41.631742736305654;
+      const targetLon = 0.778287764516331;
+      const visibilityDistance = 20; // metres
 
       const startButton = document.getElementById("startButton");
       const infoDiv = document.getElementById("info");
 
       startButton.addEventListener("click", () => {
-        startAR();
-      });
-
-      function startAR() {
         startButton.style.display = "none";
-        infoDiv.innerText = "Carregant AR...";
+        infoDiv.innerText = "Demana permisos i carrega AR...";
 
         // Demana geolocalització
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            infoDiv.innerText = "Mou-te prop de l'objecte...";
-            init();
+            initAR();
             animate();
+            infoDiv.innerText = "Mou-te prop de l'objecte...";
           },
           (err) => {
             infoDiv.innerText = "Permís de geolocalització denegat";
@@ -70,9 +67,9 @@
           },
           { enableHighAccuracy: true }
         );
-      }
+      });
 
-      function init() {
+      function initAR() {
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(
           70,
@@ -86,6 +83,7 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
+        // ARButton demana automàticament accés a la càmera
         document.body.appendChild(
           ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
         );
@@ -121,7 +119,7 @@
             const userLat = position.coords.latitude;
             const userLon = position.coords.longitude;
 
-            // Calcula distància aproximada
+            // Calcula distància aproximada (Haversine)
             const R = 6371000; // metres
             const φ1 = (userLat * Math.PI) / 180;
             const φ2 = (targetLat * Math.PI) / 180;
