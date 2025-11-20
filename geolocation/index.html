@@ -2,44 +2,45 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>User Info</title>
+    <title>AR Experience</title>
     <style>
-      #info {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        color: white;
-        background: rgba(0, 0, 0, 0.6);
-        padding: 10px;
-        border-radius: 8px;
-        font-size: 20px;
-        white-space: pre-line;
-      }
       body {
         background: black;
+        color: white;
+        font-family: sans-serif;
+        margin: 0;
+        padding: 20px;
       }
-      button {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        padding: 12px 20px;
-        font-size: 20px;
+      #info,
+      #comparison {
+        background: rgba(0, 0, 0, 0.6);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        font-size: 18px;
+      }
+      span {
+        font-weight: bold;
       }
     </style>
   </head>
   <body>
     <div id="info">
-      Latitud: <span id="lat">---</span>
-      <br />
-      Longitud: <span id="lon">---</span> <br /><br />
-      Orientació (°): <span id="alpha">---</span> <br /><br />
-      Beta: <span id="beta">---</span>
-      <br />
-      Gamma: <span id="gamma">---</span>
+      <h2>Dades de l'usuari</h2>
+      Latitud: <span id="u-lat">---</span><br />
+      Longitud: <span id="u-lon">---</span><br />
+      Orientació: <span id="u-orient">---</span><br />
+      Mode: <span id="u-mode">---</span><br />
+      Beta: <span id="u-beta">---</span><br />
+      Gamma: <span id="u-gamma">---</span>
     </div>
 
-    <button id="start">INICIAR</button>
+    <div id="comparison">
+      <h2>Comparació</h2>
+      Geovalla: <span id="c-geo">---</span><br />
+      Orientació: <span id="c-orient">---</span><br />
+      Centrament: <span id="c-tilt">---</span>
+    </div>
 
     <script type="module" src="./main.js"></script>
   </body>

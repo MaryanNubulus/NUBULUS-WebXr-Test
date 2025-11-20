@@ -1,46 +1,36 @@
-import {
-  startLocationTracking,
-  startOrientationTracking,
-  startTiltTracking,
-  getUserLocation,
-  getUserOrientation,
-  getUserTilt,
-} from "./userInfo.js";
+function updateUI() {
+  uLat.textContent = device.location.lat;
+  uLon.textContent = device.location.lon;
+  uOrient.textContent = `${device.orientation.degrees}° ${device.orientation.cardinal}`;
+  uMode.textContent = device.screen.mode;
+  uBeta.textContent = device.tilt.beta;
+  uGamma.textContent = device.tilt.gamma;
 
-import { requestPermissions } from "./permissions.js";
+  const geoRes = ComparisonUtils.isInsideGeofence(
+    device.location,
+    exp.geofence
+  );
+  cGeo.textContent = geoRes.inside
+    ? "Dins geovalla"
+    : `Fora, ${geoRes.meters.toFixed(1)} m`;
 
-function startSystem() {
-  startLocationTracking();
-  startOrientationTracking();
-  startTiltTracking();
+  if (geoRes.inside) {
+    const orientRes = ComparisonUtils.compareOrientation(
+      device.orientation.degrees,
+      exp.orientation.degrees
+    );
+    cOrient.textContent = orientRes;
 
-  const latSpan = document.getElementById("lat");
-  const lonSpan = document.getElementById("lon");
-  const alphaSpan = document.getElementById("alpha");
-  const betaSpan = document.getElementById("beta");
-  const gammaSpan = document.getElementById("gamma");
-
-  setInterval(() => {
-    const pos = getUserLocation();
-    const ori = getUserOrientation();
-    const tilt = getUserTilt();
-
-    latSpan.textContent = pos.lat !== null ? pos.lat.toFixed(6) : "---";
-    lonSpan.textContent = pos.lon !== null ? pos.lon.toFixed(6) : "---";
-    alphaSpan.textContent = ori.alpha.toFixed(0);
-    betaSpan.textContent = tilt.beta.toFixed(1);
-    gammaSpan.textContent = tilt.gamma.toFixed(1);
-  }, 1000);
+    if (orientRes === "ok") {
+      cTilt.textContent = ComparisonUtils.compareTilt(
+        device,
+        device.screen.mode
+      );
+    } else {
+      cTilt.textContent = "Esperant orientació correcta";
+    }
+  } else {
+    cOrient.textContent = "Fora geovalla";
+    cTilt.textContent = "Fora geovalla";
+  }
 }
-
-window.onload = async () => {
-  const btn = document.getElementById("start");
-
-  btn.addEventListener("click", async () => {
-    const allowed = await requestPermissions();
-    if (!allowed) return;
-
-    btn.style.display = "none";
-    startSystem();
-  });
-};
