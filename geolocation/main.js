@@ -1,3 +1,21 @@
+import { CurrentDeviceInfo } from "./currentDeviceInfo.js";
+import { CurrentExperienceInfo } from "./currentExperienceInfo.js";
+import { ComparisonUtils } from "./comparisonUtils.js";
+
+const device = new CurrentDeviceInfo();
+const exp = new CurrentExperienceInfo();
+
+const uLat = document.getElementById("u-lat");
+const uLon = document.getElementById("u-lon");
+const uOrient = document.getElementById("u-orient");
+const uMode = document.getElementById("u-mode");
+const uBeta = document.getElementById("u-beta");
+const uGamma = document.getElementById("u-gamma");
+
+const cGeo = document.getElementById("c-geo");
+const cOrient = document.getElementById("c-orient");
+const cTilt = document.getElementById("c-tilt");
+
 function updateUI() {
   uLat.textContent = device.location.lat;
   uLon.textContent = device.location.lon;
@@ -34,3 +52,9 @@ function updateUI() {
     cTilt.textContent = "Fora geovalla";
   }
 }
+
+document.getElementById("startBtn").addEventListener("click", async () => {
+  await device.requestPermissions();
+  device.init();
+  setInterval(updateUI, 1000);
+});
