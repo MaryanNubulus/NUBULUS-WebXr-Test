@@ -32,25 +32,13 @@ function updateUI() {
     ? "Dins geovalla"
     : `Fora, ${geoRes.meters.toFixed(1)} m`;
 
-  if (geoRes.inside) {
-    const orientRes = ComparisonUtils.compareOrientation(
-      device.orientation.degrees,
-      exp.orientation.degrees
-    );
-    cOrient.textContent = orientRes;
+  const orientRes = ComparisonUtils.compareOrientation(
+    device.orientation.degrees,
+    exp.orientation.degrees
+  );
+  cOrient.textContent = orientRes;
 
-    if (orientRes === "ok") {
-      cTilt.textContent = ComparisonUtils.compareTilt(
-        device,
-        device.screen.mode
-      );
-    } else {
-      cTilt.textContent = "Esperant orientació correcta";
-    }
-  } else {
-    cOrient.textContent = "Fora geovalla";
-    cTilt.textContent = "Fora geovalla";
-  }
+  cTilt.textContent = ComparisonUtils.compareTilt(device, device.screen.mode);
 }
 
 document.getElementById("startBtn").addEventListener("click", async () => {
