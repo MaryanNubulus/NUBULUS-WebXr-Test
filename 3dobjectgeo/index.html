@@ -90,27 +90,39 @@
 
       // --- PAS 1: Geolocalització ---
       geoBtn.addEventListener("click", () => {
+        // Iniciar actualització contínua de posició
         navigator.geolocation.watchPosition(
           (pos) => {
             userPosition = pos.coords;
-            info.innerText = "Geolocalització activada!";
-            geoBtn.style.display = "none";
-            camBtn.style.display = "block";
+            console.log(
+              `📍 Posició actualitzada: ${pos.coords.latitude.toFixed(
+                6
+              )}, ${pos.coords.longitude.toFixed(6)}`
+            );
           },
           (err) => {
             info.innerText = "Permís GPS denegat";
             console.error(err);
           },
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+          {
+            enableHighAccuracy: true,
+            maximumAge: 1000, // Acceptar dades d'1 segon enrere
+            timeout: 5000,
+          }
         );
+
+        info.innerText = "Geolocalització activada!";
+        geoBtn.style.display = "none";
+        camBtn.style.display = "block";
       });
 
-      // --- PAS 2: Càmera ---
+      // --- PAS 2: Càmera i Orientació ---
       camBtn.addEventListener("click", async () => {
         camBtn.style.display = "none";
-        info.innerText = "Iniciant càmera...";
+        info.innerText = "Iniciant càmera i sensors...";
 
         try {
+          // Demanar càmera UNA VEGADA
           video = document.createElement("video");
           video.autoplay = true;
           video.playsInline = true;
@@ -122,18 +134,20 @@
           });
           video.srcObject = stream;
 
-          // Iniciar sensor d'orientació
-          initOrientation();
+          // Iniciar sensor d'orientació (també UNA VEGADA)
+          await initOrientation();
+
+          info.innerText = "✅ AR iniciada";
 
           initAR();
           animate();
         } catch (err) {
-          info.innerText = "Permís de càmera denegat";
+          info.innerText = "Error: " + err.message;
           console.error(err);
         }
       });
 
-      // --- Sensor d'orientació ---
+      // --- Sensor d'orientació (s'executa UNA VEGADA) ---
       async function initOrientation() {
         // Per iOS 13+ cal demanar permís
         if (
@@ -144,6 +158,7 @@
             const permission = await DeviceOrientationEvent.requestPermission();
             if (permission === "granted") {
               window.addEventListener("deviceorientation", handleOrientation);
+              console.log("✅ Sensor d'orientació activat");
             } else {
               info.innerText += " (Orientació denegada)";
             }
@@ -153,9 +168,11 @@
         } else {
           // Android i altres
           window.addEventListener("deviceorientation", handleOrientation);
+          console.log("✅ Sensor d'orientació activat");
         }
       }
 
+      // Aquest event s'executa automàticament cada vegada que canvia l'orientació
       function handleOrientation(event) {
         if (event.alpha !== null) {
           deviceOrientation = event.alpha; // 0-360 graus (0 = Nord)
