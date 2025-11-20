@@ -2,46 +2,40 @@
 let deviceAlpha = 0;
 let arrowElem = null;
 
-export function initArrow(arrowElement) {
-  arrowElem = arrowElement;
+export function initArrow(elem) {
+  arrowElem = elem;
 
-  // Safari iOS: demanar permisos
+  // iOS Safari — cal demanar permís
   if (
     typeof DeviceOrientationEvent !== "undefined" &&
     typeof DeviceOrientationEvent.requestPermission === "function"
   ) {
-    DeviceOrientationEvent.requestPermission()
-      .then((response) => {
-        if (response === "granted") {
-          window.addEventListener("deviceorientation", handleOrientation);
-        } else {
-          alert("❌ Permís de sensors denegat. La fletxa no es mostrarà.");
-        }
-      })
-      .catch(console.error);
+    DeviceOrientationEvent.requestPermission().then((res) => {
+      if (res === "granted") {
+        window.addEventListener("deviceorientation", handleOrientation);
+      } else {
+        alert("Permís sensors denegat.");
+      }
+    });
   } else {
-    // Altres navegadors
     window.addEventListener("deviceorientation", handleOrientation);
   }
 }
 
 function handleOrientation(event) {
-  // iOS Safari utilitza webkitCompassHeading
   if (event.webkitCompassHeading) {
-    deviceAlpha = event.webkitCompassHeading; // graus respecte nord real
-  } else if (event.absolute === true || event.absolute === undefined) {
-    deviceAlpha = event.alpha || 0; // Android / PC
+    deviceAlpha = event.webkitCompassHeading; // iPhone
   } else {
-    deviceAlpha = event.alpha || 0; // fallback
+    deviceAlpha = event.alpha || 0; // Android / PC
   }
-
   updateArrow();
 }
 
 export function updateArrow() {
   if (!arrowElem || !arrowElem.dataset.bearing) return;
 
-  const dir = parseFloat(arrowElem.dataset.bearing);
-  const angle = dir - deviceAlpha;
+  const targetBearing = parseFloat(arrowElem.dataset.bearing);
+  const angle = targetBearing - deviceAlpha;
+
   arrowElem.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
 }

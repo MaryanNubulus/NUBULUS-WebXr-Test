@@ -2,90 +2,90 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8" />
-    <title>Fletxa direccional cap al punt</title>
+    <title>Direcció cap al punt</title>
     <style>
       body {
         margin: 0;
-        font-family: sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        max-height: 100vh;
+        background: #000;
         overflow: hidden;
       }
-      #info {
-        font-size: 18px;
-        text-align: center;
-        white-space: pre-line;
-        margin-bottom: 20px;
+
+      #status {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        font-size: 20px;
+        font-weight: bold;
+        color: white;
+        z-index: 9999;
       }
-      #start {
-        padding: 10px 20px;
-        font-size: 18px;
-        cursor: pointer;
-        margin-bottom: 20px;
-      }
+
       #fletxa {
         position: absolute;
         top: 50%;
         left: 50%;
         transform-origin: center center;
         transform: translate(-50%, -50%) rotate(0deg);
-        transition: transform 0.2s ease-out;
+        width: 90px;
+        height: 90px;
+        z-index: 999;
         display: none;
-        z-index: 1000;
-        width: 64px;
-        height: 64px;
       }
+
       #fletxa svg {
         width: 100%;
         height: 100%;
-        fill: red;
+        fill: #ff4747;
+      }
+
+      #start {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 12px 22px;
+        font-size: 20px;
+        border-radius: 10px;
+        border: none;
+        background: white;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <button id="start">Iniciar AR</button>
-    <div id="info">Prem el botó per obtenir la ubicació i veure la fletxa.</div>
+    <div id="status">Esperant...</div>
+
+    <button id="start">Iniciar</button>
+
     <div id="fletxa">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        fill="currentColor"
-        class="bi bi-arrow-up-circle"
-        viewBox="0 0 16 16"
-      >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
         <path
           fill-rule="evenodd"
-          d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-7.5 3.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707z"
+          d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-4.5-.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5z"
         />
       </svg>
     </div>
 
-    <!-- Turf.js global -->
+    <!-- TurfJS -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
 
-    <!-- Scripts modulars -->
     <script type="module">
       import { initGeolocation, setTargetPoint } from "./geolocation.js";
       import { initArrow, updateArrow } from "./arrow.js";
 
-      const startButton = document.getElementById("start");
-      const info = document.getElementById("info");
+      const status = document.getElementById("status");
       const fletxa = document.getElementById("fletxa");
+      const startBtn = document.getElementById("start");
 
-      // Punt objectiu i radi
-      const punt = [0.77554, 41.629331]; // [lon, lat]
-      const radi = 10; // metres
+      // 👉 Punt objectiu
+      const punt = [0.623, 41.616];
+      const radi = 50;
 
-      setTargetPoint(punt, radi, info, fletxa);
+      setTargetPoint(punt, radi, status, fletxa);
 
-      startButton.addEventListener("click", () => {
-        startButton.style.display = "none";
-        info.textContent = "🔄 Obtenint ubicació i orientació...";
+      startBtn.addEventListener("click", () => {
+        startBtn.style.display = "none";
+        status.textContent = "Carregant...";
         initGeolocation(updateArrow);
         initArrow(fletxa);
       });
