@@ -1,0 +1,79 @@
+/**
+ * Gestiona la geolocalització de l'usuari
+ */
+export class GeolocationManager {
+  constructor() {
+    this.userPosition = null;
+    this.watchId = null;
+  }
+
+  /**
+   * Inicia el seguiment de la posició de l'usuari
+   */
+  startTracking(onSuccess, onError) {
+    this.watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        this.userPosition = pos.coords;
+        console.log(
+          `📍 Posició: ${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`
+        );
+        if (onSuccess) onSuccess(pos.coords);
+      },
+      (err) => {
+        console.error("Error GPS:", err);
+        if (onError) onError(err);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 5000,
+      }
+    );
+  }
+
+  /**
+   * Atura el seguiment de la posició
+   */
+  stopTracking() {
+    if (this.watchId !== null) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+  }
+
+  /**
+   * Converteix coordenades lat/lon a metres respecte a la posició de l'usuari
+   */
+  latLonToMeters(userLat, userLon, objLat, objLon) {
+    const R = 6371000; // Radi de la Terra en metres
+    const dLat = ((objLat - userLat) * Math.PI) / 180;
+    const dLon = ((objLon - userLon) * Math.PI) / 180;
+    const latRad = (userLat * Math.PI) / 180;
+    const x = dLon * R * Math.cos(latRad);
+    const z = dLat * R;
+    return { x, z };
+  }
+
+  /**
+   * Calcula la distància entre l'usuari i un objectiu
+   */
+  getDistanceToTarget(targetLat, targetLon) {
+    if (!this.userPosition) return null;
+
+    const meters = this.latLonToMeters(
+      this.userPosition.latitude,
+      this.userPosition.longitude,
+      targetLat,
+      targetLon
+    );
+
+    return Math.sqrt(meters.x ** 2 + meters.z ** 2);
+  }
+
+  /**
+   * Obté la posició actual de l'usuari
+   */
+  getUserPosition() {
+    return this.userPosition;
+  }
+}

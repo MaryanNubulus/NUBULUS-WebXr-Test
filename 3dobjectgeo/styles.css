@@ -1,0 +1,60 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+  font-family: sans-serif;
+}
+
+#videoBackground {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+#info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  max-width: 90%;
+}
+
+.btn {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 30px;
+  font-size: 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  z-index: 100;
+  color: white;
+}
+
+#geoBtn {
+  top: 40%;
+  background: #007bff;
+}
+
+#camBtn {
+  top: 50%;
+  background: #28a745;
+  display: none;
+}
+
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
