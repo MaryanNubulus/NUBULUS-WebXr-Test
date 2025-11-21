@@ -13,802 +13,388 @@
 
 **Característiques:**
 
-- Detecció d'imatge amb targets.mind
-- Reproducció de vídeo sobre geometria personalitzada
-- Control d'àudio (botó per activar so)
-- Animacions subtils (rotació i moviment vertical)
-- Mapeig UV manual per coordenades personalitzades
+# NUBULUS WebXR - Suite d'Experiències AR guiades per Geolocalització
 
----
+## ✨ Objectiu
 
-### 2. **Projecte Peixos** (`/peixos`)
+Unificar el desenvolupament de quatre experiències WebXR (Peixos, Belloc, Penelles i Objecte 3D geolocalitzat) sota una arquitectura modular en HTML, CSS i JavaScript per classes. Totes les experiències comparteixen el mateix flux:
 
-**Tecnologies:**
+1. Obtenir permisos i dades del dispositiu (GPS, orientació, càmera).
+2. Comprovar que l'usuari es troba dins la geovalla assignada a l'experiència.
+3. Mostrar guies d'orientació fins que l'usuari entri a la geovalla.
+4. Activar el contingut específic (MindAR o model 3D) quan la geovalla és vàlida.
 
-- MindAR Image Tracking
-- Three.js
-- Reproducció de vídeo amb PlaneGeometry
+## 🔎 Anàlisi dels Projectes Actuals
 
-**Característiques:**
+- **/belloc**: MindAR + Three.js amb vídeo sobre ShapeGeometry personalitzada i control de so.
+- **/peixos**: MindAR + Three.js amb PlaneGeometry ajustada automàticament.
+- **/penelles**: MindAR + Three.js amb vídeo a escala gran.
+- **/3dobjectgeo**: Three.js pur amb model GLTF posicionat per GPS, indicador direccional i càmera de fons.
+- **/geolocation**: Prototip modular amb classes per sensors i utils (geofences, orientació, tilt).
 
-- Detecció d'imatge amb targets.mind
-- Pla amb aspect ratio ajustat automàticament
-- Escala: `videoRatio * 0.6`
-- Animacions subtils simples
+L'objectiu és portar la modularitat de `/geolocation` a totes les experiències, de manera que la geovalla sigui condició prèvia comuna abans d'invocar MindAR o el posicionament 3D.
 
----
-
-### 3. **Projecte Penelles** (`/penelles`)
-
-**Tecnologies:**
-
-- MindAR Image Tracking
-- Three.js
-- Reproducció de vídeo amb PlaneGeometry
-
-**Característiques:**
-
-- Detecció d'imatge amb targets.mind
-- Pla amb aspect ratio ajustat automàticament
-- Escala: `videoRatio * 1.7` (més gran que Peixos)
-- Animacions subtils
-
----
-
-### 4. **Projecte Geolocation** (`/geolocation`)
-
-**Tecnologies:**
-
-- Arquitectura modular amb classes ES6
-- Geolocalització (watchPosition)
-- Device Orientation API
-- Screen Orientation Detection
-- Algoritmes de comparació (geofencing, orientació, tilt)
-
-**Mòduls:**
-
-- `CurrentDeviceInfo.js` - Gestió de sensors del dispositiu
-- `CurrentExperienceInfo.js` - Configuració de l'experiència
-- `ComparisonUtils.js` - Utilitats de càlcul (Haversine, point-in-polygon)
-- `main.js` - Orquestrador principal
-
-**Característiques:**
-
-- Sistema de geovalla (polygon geofencing)
-- Detecció d'orientació cardinal (N, NE, E, etc.)
-- Normalització de tilt (beta/gamma)
-- Comparació en temps real
-- Gestió de permisos iOS
-
----
-
-### 5. **Projecte 3D Object Geo** (`/3dobjectgeo`)
-
-**Tecnologies:**
-
-- Three.js
-- GLTFLoader
-- Geolocalització contínua (watchPosition)
-- Device Orientation API
-- Video Background
-
-**Característiques:**
-
-- Càmera de fons amb textura de vídeo
-- Càrrega de models 3D (.glb)
-- Posicionament d'objectes segons coordenades GPS
-- Conversió lat/lon a metres (Haversine)
-- Indicador direccional (fletxa que apunta a l'objecte)
-- Distància de visibilitat configurable (20m)
-- Actualització contínua de posició
-
----
-
-## 🏗️ Arquitectura Proposada - Projecte Modular
-
-### Estructura de Carpetes
+## 🧱 Estructura Modular Recomanada
 
 ```
 project-root/
-│
-├── index.html                    # Selector d'experiències
+├── index.html                     # selector d'experiències
 ├── README.md
-├── package.json
-│
 ├── src/
-│   ├── core/                     # Classes base
-│   │   ├── ExperienceManager.js
-│   │   ├── SceneManager.js
-│   │   └── ARSession.js
+│   ├── core/
+│   │   ├── BaseExperience.js      # classe abstracta
+│   │   ├── GeofenceGate.js        # coordinador geovalla
+│   │   ├── SensorSuite.js         # permisos + gestió unificada de sensors
+│   │   └── SceneManager.js        # configuració Three.js compartida
 │   │
-│   ├── modules/                  # Mòduls funcionals
+│   ├── modules/
 │   │   ├── geolocation/
-│   │   │   ├── DeviceInfo.js
 │   │   │   ├── LocationTracker.js
 │   │   │   ├── OrientationTracker.js
-│   │   │   └── GeofenceUtils.js
-│   │   │
-│   │   ├── image-tracking/
-│   │   │   ├── ImageTracker.js
-│   │   │   ├── TargetManager.js
-│   │   │   └── AnchorManager.js
-│   │   │
-│   │   ├── 3d-rendering/
+│   │   │   ├── GeofenceUtils.js
+│   │   │   └── HeadingIndicator.js
+│   │   ├── mindar/
+│   │   │   ├── MindARController.js
+│   │   │   ├── VideoAnchorFactory.js
+│   │   │   └── TargetRegistry.js
+│   │   ├── rendering/
 │   │   │   ├── ModelLoader.js
-│   │   │   ├── VideoTexture.js
-│   │   │   ├── GeometryBuilder.js
+│   │   │   ├── VideoPlaneBuilder.js
 │   │   │   └── MaterialFactory.js
-│   │   │
-│   │   ├── audio/
-│   │   │   ├── AudioManager.js
-│   │   │   └── SpatialAudio.js
-│   │   │
 │   │   └── ui/
-│   │       ├── StatusDisplay.js
-│   │       ├── ControlPanel.js
-│   │       └── LoadingScreen.js
+│   │       ├── StatusPanel.js
+│   │       └── PromptManager.js
 │   │
-│   ├── experiences/              # Experiències individuals
-│   │   ├── BellocExperience.js
+│   ├── experiences/
 │   │   ├── PeixosExperience.js
+│   │   ├── BellocExperience.js
 │   │   ├── PenellesExperience.js
-│   │   ├── GeolocationExperience.js
-│   │   └── Object3DGeoExperience.js
+│   │   └── Object3DExperience.js
 │   │
-│   ├── utils/                    # Utilitats generals
-│   │   ├── MathUtils.js
-│   │   ├── PermissionsManager.js
-│   │   ├── DeviceDetector.js
-│   │   └── Logger.js
+│   ├── config/
+│   │   ├── experiences.config.js
+│   │   └── sensors.config.js
 │   │
-│   └── config/                   # Configuracions
-│       ├── experiences.config.js
-│       ├── three.config.js
-│       └── constants.js
+│   └── utils/
+│       ├── MathUtils.js
+│       ├── PermissionsManager.js
+│       └── Logger.js
 │
-├── assets/                       # Recursos estàtics
+├── assets/
 │   ├── models/
-│   ├── videos/
-│   ├── images/
 │   ├── targets/
+│   ├── videos/
 │   └── audio/
-│
-├── styles/
-│   ├── main.css
-│   ├── components/
-│   └── experiences/
-│
-└── docs/
-    ├── API.md
-    └── ARCHITECTURE.md
+└── styles/
+    ├── main.css
+    └── experiences/
 ```
 
----
+## 🧠 Flux Global
 
-## 🔧 Classes Base
-
-### 1. **ExperienceManager** (Core)
-
-```javascript
-export class ExperienceManager {
-  constructor(config) {
-    this.type = config.type; // 'image-tracking', 'geolocation', 'mixed'
-    this.scene = null;
-    this.renderer = null;
-    this.camera = null;
-  }
-
-  async init() {}
-  start() {}
-  stop() {}
-  destroy() {}
-}
+```
+App -> BaseExperience -> GeofenceGate -> (MindAR | Three.js Model)
+                       ↘ StatusPanel + HeadingIndicator
 ```
 
-### 2. **SceneManager** (Core)
+1. **SensorSuite** demana permisos (GPS, orientació, càmera) i activa `LocationTracker` i `OrientationTracker`.
+2. **GeofenceGate** rep les actualitzacions i calcula la distància; informa `StatusPanel` i `HeadingIndicator`.
+3. Quan `GeofenceGate` emet `enter`, la classe derivada activa MindAR o el model 3D.
+4. En `leave`, el contingut es pausa i es mostra la guia perquè l'usuari torni a entrar.
+
+## 🧩 Classes Core
+
+### `BaseExperience`
 
 ```javascript
-export class SceneManager {
-  constructor(threeConfig) {
-    this.scene = new THREE.Scene();
-    this.camera = this.createCamera(threeConfig);
-    this.renderer = this.createRenderer(threeConfig);
-  }
-
-  createCamera(config) {}
-  createRenderer(config) {}
-  addObject(object) {}
-  removeObject(object) {}
-  animate() {}
-}
-```
-
-### 3. **ARSession** (Core)
-
-```javascript
-export class ARSession {
-  constructor() {
-    this.isActive = false;
-    this.permissions = {
-      camera: false,
-      location: false,
-      orientation: false,
-    };
-  }
-
-  async requestPermissions() {}
-  start() {}
-  stop() {}
-}
-```
-
----
-
-## 📦 Mòduls Funcionals
-
-### **Geolocation Module**
-
-#### `DeviceInfo.js`
-
-```javascript
-export class DeviceInfo {
-  constructor() {
-    this.location = { lat: null, lon: null, accuracy: null };
-    this.orientation = { alpha: 0, beta: 0, gamma: 0, cardinal: "N" };
-    this.screen = { mode: "portrait", width: 0, height: 0 };
-  }
-
-  async init() {}
-  startTracking() {}
-  stopTracking() {}
-  getSnapshot() {}
-}
-```
-
-#### `LocationTracker.js`
-
-```javascript
-export class LocationTracker {
-  constructor() {
-    this.watchId = null;
-    this.currentPosition = null;
-    this.callbacks = [];
-  }
-
-  start(options = {}) {}
-  stop() {}
-  onUpdate(callback) {}
-  getDistance(lat, lon) {}
-}
-```
-
-#### `OrientationTracker.js`
-
-```javascript
-export class OrientationTracker {
-  constructor() {
-    this.alpha = 0; // compass
-    this.beta = 0; // tilt front-back
-    this.gamma = 0; // tilt left-right
-    this.callbacks = [];
-  }
-
-  async requestPermission() {}
-  start() {}
-  stop() {}
-  onUpdate(callback) {}
-  getCardinalDirection() {}
-}
-```
-
-#### `GeofenceUtils.js`
-
-```javascript
-export class GeofenceUtils {
-  static isInsidePolygon(point, polygon) {}
-  static haversineDistance(lat1, lon1, lat2, lon2) {}
-  static bearingTo(lat1, lon1, lat2, lon2) {}
-  static createCircleGeofence(center, radius, points = 32) {}
-}
-```
-
----
-
-### **Image Tracking Module**
-
-#### `ImageTracker.js`
-
-```javascript
-export class ImageTracker {
-  constructor(targetSrc, config = {}) {
-    this.targetSrc = targetSrc;
-    this.mindarThree = null;
-    this.anchors = [];
-    this.config = {
-      filterMinCF: 0.8,
-      filterBeta: 0.8,
-      ...config,
-    };
-  }
-
-  async init(container) {}
-  addAnchor(index, content) {}
-  start() {}
-  stop() {}
-}
-```
-
-#### `TargetManager.js`
-
-```javascript
-export class TargetManager {
-  constructor() {
-    this.targets = new Map();
-    this.activeTargets = new Set();
-  }
-
-  loadTarget(id, path) {}
-  getTarget(id) {}
-  onTargetFound(id, callback) {}
-  onTargetLost(id, callback) {}
-}
-```
-
----
-
-### **3D Rendering Module**
-
-#### `ModelLoader.js`
-
-```javascript
-export class ModelLoader {
-  constructor() {
-    this.gltfLoader = new GLTFLoader();
-    this.fbxLoader = null; // lazy load
-    this.cache = new Map();
-  }
-
-  async loadGLTF(path) {}
-  async loadFBX(path) {}
-  getFromCache(path) {}
-  clearCache() {}
-}
-```
-
-#### `VideoTexture.js`
-
-```javascript
-export class VideoTexture {
-  constructor(videoSrc, options = {}) {
-    this.video = document.createElement("video");
-    this.texture = null;
-    this.options = {
-      loop: true,
-      muted: true,
-      autoplay: false,
-      ...options,
-    };
-  }
-
-  async load() {}
-  play() {}
-  pause() {}
-  getTexture() {}
-  dispose() {}
-}
-```
-
-#### `GeometryBuilder.js`
-
-```javascript
-export class GeometryBuilder {
-  static createPlaneWithAspectRatio(video, scale = 1) {}
-  static createCustomShape(points, uvMapping = "automatic") {}
-  static createSphere(radius, segments) {}
-}
-```
-
-#### `MaterialFactory.js`
-
-```javascript
-export class MaterialFactory {
-  static createVideoMaterial(texture, options = {}) {}
-  static createBasicMaterial(options) {}
-  static createStandardMaterial(options) {}
-}
-```
-
----
-
-### **Audio Module**
-
-#### `AudioManager.js`
-
-```javascript
-export class AudioManager {
-  constructor() {
-    this.context = null;
-    this.sounds = new Map();
-    this.isMuted = false;
-  }
-
-  async init() {}
-  loadSound(id, path) {}
-  play(id, options = {}) {}
-  stop(id) {}
-  mute() {}
-  unmute() {}
-}
-```
-
-#### `SpatialAudio.js`
-
-```javascript
-export class SpatialAudio {
-  constructor(audioManager) {
-    this.manager = audioManager;
-    this.listener = null;
-  }
-
-  create3DSound(id, position) {}
-  updateListenerPosition(position, orientation) {}
-}
-```
-
----
-
-### **UI Module**
-
-#### `StatusDisplay.js`
-
-```javascript
-export class StatusDisplay {
-  constructor(containerId) {
-    this.container = document.getElementById(containerId);
-    this.elements = {};
-  }
-
-  create() {}
-  update(key, value) {}
-  show() {}
-  hide() {}
-}
-```
-
-#### `ControlPanel.js`
-
-```javascript
-export class ControlPanel {
-  constructor() {
-    this.buttons = new Map();
-    this.sliders = new Map();
-  }
-
-  addButton(id, label, callback) {}
-  addSlider(id, label, min, max, callback) {}
-  show() {}
-  hide() {}
-}
-```
-
----
-
-## 🎯 Exemples d'Experiències
-
-### **BellocExperience.js**
-
-```javascript
-import { ExperienceManager } from "../core/ExperienceManager.js";
-import { ImageTracker } from "../modules/image-tracking/ImageTracker.js";
-import { VideoTexture } from "../modules/3d-rendering/VideoTexture.js";
-import { GeometryBuilder } from "../modules/3d-rendering/GeometryBuilder.js";
-
-export class BellocExperience extends ExperienceManager {
-  constructor() {
-    super({ type: "image-tracking", name: "Belloc" });
-    this.tracker = null;
-    this.videoTexture = null;
+export class BaseExperience {
+  constructor({ id, name, geofence, targetLocation }) {
+    this.id = id;
+    this.name = name;
+    this.geofence = geofence;
+    this.targetLocation = targetLocation;
+    this.sensorSuite = new SensorSuite();
+    this.geofenceGate = new GeofenceGate(geofence);
+    this.statusPanel = new StatusPanel("status");
+    this.prompt = new PromptManager("prompt");
   }
 
   async init() {
-    this.tracker = new ImageTracker("./assets/targets/belloc.mind");
-    await this.tracker.init(document.getElementById("ar-container"));
+    await this.sensorSuite.init();
+    this.geofenceGate.bindSensors(this.sensorSuite);
+    this.bindGeofenceEvents();
+    this.setupUI();
+  }
 
-    this.videoTexture = new VideoTexture("./assets/videos/belloc.mp4");
-    await this.videoTexture.load();
+  bindGeofenceEvents() {}
+  setupUI() {}
+  async onEnterGeofence() {}
+  async onLeaveGeofence() {}
+  destroy() {
+    this.sensorSuite.destroy();
+  }
+}
+```
 
-    const customShape = GeometryBuilder.createCustomShape([
-      { x: 0.51, y: 0.11 },
-      { x: 0.98, y: 0.42 },
-      { x: 0.99, y: 0.91 },
-      { x: 0.01, y: 0.9 },
-      { x: 0.03, y: 0.41 },
+### `GeofenceGate`
+
+```javascript
+export class GeofenceGate {
+  constructor(polygon) {
+    this.polygon = polygon;
+    this.isInside = false;
+    this.listeners = { enter: [], leave: [], update: [] };
+  }
+
+  bindSensors(sensorSuite) {
+    sensorSuite.onLocation((location) => this.evaluate(location));
+    sensorSuite.onOrientation((orientation) =>
+      this.emit("update", { orientation })
+    );
+  }
+
+  evaluate(location) {
+    const result = GeofenceUtils.distanceToPolygon(location, this.polygon);
+    if (!this.isInside && result.inside) {
+      this.isInside = true;
+      this.emit("enter", result);
+    } else if (this.isInside && !result.inside) {
+      this.isInside = false;
+      this.emit("leave", result);
+    }
+    this.emit("update", result);
+  }
+
+  on(event, callback) {
+    this.listeners[event].push(callback);
+  }
+  emit(event, payload) {
+    this.listeners[event].forEach((cb) => cb(payload));
+  }
+}
+```
+
+### `SensorSuite`
+
+```javascript
+export class SensorSuite {
+  constructor() {
+    this.locationTracker = new LocationTracker();
+    this.orientationTracker = new OrientationTracker();
+    this.callbacks = { location: [], orientation: [] };
+  }
+
+  async init() {
+    await PermissionsManager.request([
+      "geolocation",
+      "deviceorientation",
+      "camera",
     ]);
-
-    const anchor = this.tracker.addAnchor(0, {
-      geometry: customShape,
-      texture: this.videoTexture.getTexture(),
-      scale: 0.45,
-    });
-
-    this.tracker.start();
-  }
-}
-```
-
-### **GeolocationExperience.js**
-
-```javascript
-import { ExperienceManager } from "../core/ExperienceManager.js";
-import { LocationTracker } from "../modules/geolocation/LocationTracker.js";
-import { OrientationTracker } from "../modules/geolocation/OrientationTracker.js";
-import { GeofenceUtils } from "../modules/geolocation/GeofenceUtils.js";
-
-export class GeolocationExperience extends ExperienceManager {
-  constructor(config) {
-    super({ type: "geolocation", name: "Geolocation" });
-    this.locationTracker = new LocationTracker();
-    this.orientationTracker = new OrientationTracker();
-    this.geofence = config.geofence;
-    this.targetOrientation = config.targetOrientation;
-  }
-
-  async init() {
-    await this.orientationTracker.requestPermission();
-
-    this.locationTracker.start();
-    this.orientationTracker.start();
-
-    this.locationTracker.onUpdate((position) => {
-      this.checkGeofence(position);
-    });
-
-    this.orientationTracker.onUpdate((orientation) => {
-      this.checkOrientation(orientation);
-    });
-  }
-
-  checkGeofence(position) {
-    const result = GeofenceUtils.isInsidePolygon(position, this.geofence);
-    this.emit("geofence-check", result);
-  }
-
-  checkOrientation(orientation) {
-    const cardinal = this.orientationTracker.getCardinalDirection();
-    this.emit("orientation-update", { orientation, cardinal });
-  }
-}
-```
-
-### **Object3DGeoExperience.js**
-
-```javascript
-import { ExperienceManager } from "../core/ExperienceManager.js";
-import { LocationTracker } from "../modules/geolocation/LocationTracker.js";
-import { OrientationTracker } from "../modules/geolocation/OrientationTracker.js";
-import { ModelLoader } from "../modules/3d-rendering/ModelLoader.js";
-import { GeofenceUtils } from "../modules/geolocation/GeofenceUtils.js";
-
-export class Object3DGeoExperience extends ExperienceManager {
-  constructor(config) {
-    super({ type: "mixed", name: "3D Geo Object" });
-    this.targetLocation = config.targetLocation;
-    this.modelPath = config.modelPath;
-    this.visibilityDistance = config.visibilityDistance || 20;
-
-    this.locationTracker = new LocationTracker();
-    this.orientationTracker = new OrientationTracker();
-    this.modelLoader = new ModelLoader();
-    this.model = null;
-  }
-
-  async init() {
-    await super.init();
-
-    this.model = await this.modelLoader.loadGLTF(this.modelPath);
-    this.model.scale.set(5, 5, 5);
-    this.scene.add(this.model);
-
     this.locationTracker.start({ enableHighAccuracy: true });
     await this.orientationTracker.requestPermission();
     this.orientationTracker.start();
 
-    this.setupBackgroundCamera();
+    this.locationTracker.onUpdate((loc) =>
+      this.callbacks.location.forEach((cb) => cb(loc))
+    );
+    this.orientationTracker.onUpdate((ori) =>
+      this.callbacks.orientation.forEach((cb) => cb(ori))
+    );
   }
 
-  animate() {
-    const position = this.locationTracker.currentPosition;
-    const orientation = this.orientationTracker.alpha;
-
-    if (position && this.model) {
-      const meters = this.latLonToMeters(
-        position.lat,
-        position.lon,
-        this.targetLocation.lat,
-        this.targetLocation.lon
-      );
-
-      this.model.position.x = meters.x;
-      this.model.position.z = -meters.z;
-
-      const distance = Math.sqrt(meters.x ** 2 + meters.z ** 2);
-      this.model.visible = distance <= this.visibilityDistance;
-
-      const bearing = Math.atan2(meters.x, meters.z) * (180 / Math.PI);
-      const relativeAngle = bearing - orientation;
-
-      this.updateIndicator(relativeAngle, this.model.visible);
-    }
-
-    this.renderer.render(this.scene, this.camera);
-    requestAnimationFrame(() => this.animate());
+  onLocation(cb) {
+    this.callbacks.location.push(cb);
   }
-
-  latLonToMeters(userLat, userLon, objLat, objLon) {
-    const R = 6371000;
-    const dLat = ((objLat - userLat) * Math.PI) / 180;
-    const dLon = ((objLon - userLon) * Math.PI) / 180;
-    const latRad = (userLat * Math.PI) / 180;
-    const x = dLon * R * Math.cos(latRad);
-    const z = dLat * R;
-    return { x, z };
+  onOrientation(cb) {
+    this.callbacks.orientation.push(cb);
+  }
+  destroy() {
+    this.locationTracker.stop();
+    this.orientationTracker.stop();
   }
 }
 ```
 
----
+### `StatusPanel`
 
-## 🔌 Configuració d'Experiències
+```javascript
+export class StatusPanel {
+  constructor(containerId) {
+    this.container = document.getElementById(containerId);
+  }
+
+  render() {
+    this.container.innerHTML = `
+      <h2>Estat</h2>
+      <p id="status-geofence">Fora de la geovalla</p>
+      <p id="status-distance">Distància: -- m</p>
+      <p id="status-heading">Rumb: --°</p>
+    `;
+  }
+
+  update({ inside, distance, heading }) {
+    document.getElementById("status-geofence").textContent = inside
+      ? "Dins geovalla"
+      : "Fora de la geovalla";
+    document.getElementById(
+      "status-distance"
+    ).textContent = `Distància: ${distance.toFixed(1)} m`;
+    document.getElementById(
+      "status-heading"
+    ).textContent = `Rumb: ${heading.cardinal}`;
+  }
+}
+```
+
+## 🧭 Mecanisme de Geovalla Compartit
+
+- **GeofenceUtils.distanceToPolygon(location, polygon)** retorna `{ inside, distance, heading }`.
+- **HeadingIndicator** mostra una fletxa 2D per guiar l'usuari cap a la zona activa.
+- Totes les experiències reben events `enter`, `leave`, `update` i actuen en conseqüència.
+
+## 🎬 Experiències Detallades
+
+### 1. `PeixosExperience`
+
+- Tipus: `image-tracking`
+- Target: `peixos.mind`
+- Geometria: Plane escalat al ratio del vídeo (`VideoPlaneBuilder`).
+- Flux:
+  1. Espera `enter`.
+  2. Crea `MindARController` i `VideoAnchorFactory` per vincular el vídeo.
+  3. En `leave`, pausa el vídeo i mostra el prompt de tornada a geovalla.
+
+### 2. `BellocExperience`
+
+- Tipus: `image-tracking`
+- Target: `belloc.mind`
+- Geometria: Shape personalitzada amb UVs personalitzats.
+- Inclou botó d'àudio via `PromptManager`.
+- Flux: idèntic al de Peixos però reemplaça la geometria i afegeix `AudioManager`.
+
+### 3. `PenellesExperience`
+
+- Tipus: `image-tracking`
+- Target: `penelles.mind`
+- Geometria: Plane escalat `1.7`.
+- Permet animacions subtils configurables via `VideoAnchorFactory`.
+
+### 4. `Object3DExperience`
+
+- Tipus: `geo-3d`
+- Target: model `GLTF`.
+- Quan s'entra a la geovalla:
+  - Es carrega el model amb `ModelLoader`.
+  - Es posiciona en temps real amb `GeofenceUtils.latLonToMeters`.
+  - `HeadingIndicator` s'amaga quan la distància és menor que `visibilityDistance`.
+- En `leave`, el model s'oculta i torna a mostrar la guia.
+
+## ⚙️ Configuració Central
 
 ### `experiences.config.js`
 
 ```javascript
 export const experiencesConfig = {
-  belloc: {
-    name: "Experiència Belloc",
-    type: "image-tracking",
-    target: "./assets/targets/belloc.mind",
-    video: "./assets/videos/belloc.mp4",
-    geometry: "custom-shape",
-    scale: 0.45,
-    customShape: [
-      { x: 0.51, y: 0.11 },
-      { x: 0.98, y: 0.42 },
-      { x: 0.99, y: 0.91 },
-      { x: 0.01, y: 0.9 },
-      { x: 0.03, y: 0.41 },
-    ],
-  },
-
   peixos: {
+    id: "peixos",
     name: "Experiència Peixos",
-    type: "image-tracking",
-    target: "./assets/targets/peixos.mind",
-    video: "./assets/videos/peixos.mp4",
-    geometry: "plane",
-    scale: 0.6,
+    geofence: [...],
+    mindar: { target: "./assets/targets/peixos.mind", video: "./assets/videos/peixos.mp4", scale: 0.6 }
   },
-
+  belloc: {
+    id: "belloc",
+    name: "Experiència Belloc",
+    geofence: [...],
+    mindar: { target: "./assets/targets/belloc.mind", video: "./assets/videos/belloc.mp4", shape: [...] },
+    audio: { src: "./assets/audio/belloc.mp3" }
+  },
   penelles: {
+    id: "penelles",
     name: "Experiència Penelles",
-    type: "image-tracking",
-    target: "./assets/targets/penelles.mind",
-    video: "./assets/videos/penelles.mp4",
-    geometry: "plane",
-    scale: 1.7,
+    geofence: [...],
+    mindar: { target: "./assets/targets/penelles.mind", video: "./assets/videos/penelles.mp4", scale: 1.7 }
   },
-
-  geolocation: {
-    name: "Experiència Geolocalització",
-    type: "geolocation",
-    targetLocation: { lat: 41.231, lon: 1.123 },
-    targetOrientation: 120,
-    geofence: [
-      { lat: 41.23, lon: 1.12 },
-      { lat: 41.24, lon: 1.12 },
-      { lat: 41.24, lon: 1.13 },
-      { lat: 41.23, lon: 1.13 },
-    ],
-  },
-
-  object3dgeo: {
-    name: "Experiència 3D Geolocalització",
-    type: "mixed",
+  object3d: {
+    id: "object3d",
+    name: "Objecte 3D Geolocalitzat",
+    geofence: [...],
     targetLocation: { lat: 41.631736995249575, lon: 0.7782826945720215 },
-    modelPath: "./assets/models/test.glb",
-    visibilityDistance: 20,
-  },
+    model: { path: "./assets/models/test.glb", scale: 5, visibilityDistance: 20 }
+  }
 };
 ```
 
----
-
-## 🚀 Implementació
-
-### **main.js** (Punt d'entrada)
+## 🏁 Pseudocodi d'Entranda
 
 ```javascript
-import { BellocExperience } from "./experiences/BellocExperience.js";
-import { PeixosExperience } from "./experiences/PeixosExperience.js";
-import { PenellesExperience } from "./experiences/PenellesExperience.js";
-import { GeolocationExperience } from "./experiences/GeolocationExperience.js";
-import { Object3DGeoExperience } from "./experiences/Object3DGeoExperience.js";
 import { experiencesConfig } from "./config/experiences.config.js";
+import {
+  PeixosExperience,
+  BellocExperience,
+  PenellesExperience,
+  Object3DExperience,
+} from "./experiences/index.js";
 
-class App {
-  constructor() {
-    this.currentExperience = null;
-    this.experiences = new Map();
-  }
+const experienceMap = {
+  peixos: PeixosExperience,
+  belloc: BellocExperience,
+  penelles: PenellesExperience,
+  object3d: Object3DExperience,
+};
 
-  registerExperiences() {
-    this.experiences.set(
-      "belloc",
-      new BellocExperience(experiencesConfig.belloc)
-    );
-    this.experiences.set(
-      "peixos",
-      new PeixosExperience(experiencesConfig.peixos)
-    );
-    this.experiences.set(
-      "penelles",
-      new PenellesExperience(experiencesConfig.penelles)
-    );
-    this.experiences.set(
-      "geolocation",
-      new GeolocationExperience(experiencesConfig.geolocation)
-    );
-    this.experiences.set(
-      "object3dgeo",
-      new Object3DGeoExperience(experiencesConfig.object3dgeo)
-    );
-  }
-
-  async loadExperience(id) {
-    if (this.currentExperience) {
-      await this.currentExperience.stop();
-      this.currentExperience.destroy();
-    }
-
-    const experience = this.experiences.get(id);
-    if (experience) {
-      this.currentExperience = experience;
-      await experience.init();
-      experience.start();
-    }
-  }
-
-  init() {
-    this.registerExperiences();
-
-    // Detectar experiència des de URL o selector
-    const urlParams = new URLSearchParams(window.location.search);
-    const experienceId = urlParams.get("exp");
-
-    if (experienceId) {
-      this.loadExperience(experienceId);
-    }
-  }
+async function loadExperience(id) {
+  const config = experiencesConfig[id];
+  const ExperienceClass = experienceMap[id];
+  const experience = new ExperienceClass(config);
+  await experience.init();
+  await experience.waitForGeofence();
+  experience.start();
 }
 
-const app = new App();
-app.init();
+const params = new URLSearchParams(window.location.search);
+loadExperience(params.get("exp") || "peixos");
 ```
+
+`waitForGeofence()` encapsula la subscripció a `GeofenceGate` i resol només quan es rep `enter`.
+
+## 🔄 Comportament Geofence (totes les experiències)
+
+- **Fora**: bloquejar MindAR/Three.js, mostrar missatge i fletxa direccional.
+- **Transició a dins**: inicialitzar o reprendre contingut.
+- **Dins**: actualitzar distància i rumb en temps real.
+- **Sortida**: pausar everything, tornar a mostrar guia.
+
+## 🛠️ Instruments Clau
+
+- `GeofenceUtils`
+  - `distanceToPolygon(point, polygon)`
+  - `latLonToMeters(userLat, userLon, targetLat, targetLon)`
+  - `bearingBetweenPoints(pointA, pointB)`
+- `HeadingIndicator`
+  - `update(relativeAngle, distance)`
+  - `show()` / `hide()`
+
+## ✅ Beneficis
+
+- Reutilització màxima de sensors i flux de geovalla.
+- Integració coherent dels quatre projectes.
+- Control d'estat centralitzat i fàcil de testejar.
+- Experiència d'usuari consistent amb missatges i indicacions unificades.
+
+## 📌 Properes Tasques
+
+- Implementar `GeofenceGate` i `SensorSuite` compartits.
+- Migrar cada experiència perquè extengui `BaseExperience`.
+- Crear UI neutra (`StatusPanel`, `PromptManager`, `HeadingIndicator`).
+- Validar permisos i compatibilitat (iOS/Android) per sensors i càmera.
+- Escriure tests unitàris per `GeofenceUtils`.
+- Documentar API per experiència a `docs/`.
 
 ---
 
-## 📱 Tecnologies Integrades
-
-| Tecnologia                 | Ús                | Projectes                               |
-| -------------------------- | ----------------- | --------------------------------------- |
-| **Three.js**               | Motor 3D          | Tots                                    |
-| **MindAR**                 | Image tracking    | Belloc, Peixos, Penelles                |
-| **Geolocation API**        | GPS tracking      | Geolocation, 3DObjectGeo                |
-| **Device Orientation API** | Compass/Sensors   | Geolocation, 3DObjectGeo                |
-| **WebGL**                  | Renderització     | Tots                                    |
-| **ES6 Modules**            | Modularitat       | Geolocation (actual), Proposat per tots |
-| **GLTFLoader**             | Càrrega models 3D | 3DObjectGeo                             |
-| **VideoTexture**           | Vídeo com textura | Belloc, Peixos, Penelles                |
+**Autor**: NUBULUS Team  
+**Versió**: 2.0.0  
+**Llicència**: MIT
 
 ---
 
