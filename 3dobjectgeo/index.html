@@ -11,15 +11,26 @@
         background: black;
         font-family: sans-serif;
       }
+      #videoBackground {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 0;
+      }
       #info {
         position: absolute;
         top: 10px;
         left: 10px;
         color: white;
         z-index: 100;
-        background: rgba(0, 0, 0, 0.5);
-        padding: 5px 10px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 8px 12px;
         border-radius: 6px;
+        font-size: 12px;
+        max-width: 90%;
       }
       #indicator {
         position: absolute;
@@ -28,7 +39,7 @@
         width: 50px;
         height: 50px;
         z-index: 100;
-        color: white;
+        color: #00ff00;
         font-size: 40px;
         text-align: center;
         pointer-events: none;
@@ -54,9 +65,16 @@
         background: #28a745;
         display: none;
       }
+      canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1;
+      }
     </style>
   </head>
   <body>
+    <video id="videoBackground" autoplay playsinline muted></video>
     <div id="info">Prem els botons per activar AR</div>
     <div id="indicator">⬆️</div>
     <button id="geoBtn" class="btn">Activa Geolocalització</button>
@@ -74,9 +92,10 @@
     <script type="module">
       import * as THREE from "three";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-      let scene, camera, renderer, model, video, videoTexture, videoMesh;
+      
+      let scene, camera, renderer, model;
       let userPosition = null;
-      let deviceOrientation = 0; // Orientació del dispositiu (alpha)
+      let deviceOrientation = 0;
       const targetLat = 41.631736995249575;
       const targetLon = 0.7782826945720215;
       const visibilityDistance = 20; // metres
@@ -92,17 +111,15 @@
       const indicator = document.getElementById("indicator");
       const geoBtn = document.getElementById("geoBtn");
       const camBtn = document.getElementById("camBtn");
+      const videoElement = document.getElementById("videoBackground");
 
       // --- PAS 1: Geolocalització ---
       geoBtn.addEventListener("click", () => {
-        // Iniciar actualització contínua de posició
         navigator.geolocation.watchPosition(
           (pos) => {
             userPosition = pos.coords;
             console.log(
-              `📍 Posició actualitzada: ${pos.coords.latitude.toFixed(
-                6
-              )}, ${pos.coords.longitude.toFixed(6)}`
+              `📍 Posició: ${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`
             );
           },
           (err) => {
@@ -111,7 +128,7 @@
           },
           {
             enableHighAccuracy: true,
-            maximumAge: 1000, // Acceptar dades d'1 segon enrere
+            maximumAge: 1000,
             timeout: 5000,
           }
         );
@@ -127,26 +144,13 @@
         info.innerText = "Iniciant càmera i sensors...";
 
         try {
-          // Demanar càmera UNA VEGADA
-          video = document.createElement("video");
-          video.autoplay = true;
-          video.playsInline = true;
-          video.muted = true;
-
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: "environment" },
             audio: false,
           });
-          video.srcObject = stream;
+          videoElement.srcObject = stream;
 
-          // Esperar que el vídeo estigui llest per obtenir dimensions
-          await new Promise((resolve) => {
-            video.addEventListener('loadedmetadata', resolve, { once: true });
-          });
-
-          // Iniciar sensor d'orientació (també UNA VEGADA)
           await initOrientation();
-
           info.innerText = "✅ AR iniciada";
 
           initAR();
@@ -157,9 +161,8 @@
         }
       });
 
-      // --- Sensor d'orientació (s'executa UNA VEGADA) ---
+      // --- Sensor d'orientació ---
       async function initOrientation() {
-        // Per iOS 13+ cal demanar permís
         if (
           typeof DeviceOrientationEvent !== "undefined" &&
           typeof DeviceOrientationEvent.requestPermission === "function"
@@ -176,16 +179,14 @@
             console.error("Error permisos orientació:", err);
           }
         } else {
-          // Android i altres
           window.addEventListener("deviceorientation", handleOrientation);
           console.log("✅ Sensor d'orientació activat");
         }
       }
 
-      // Aquest event s'executa automàticament cada vegada que canvia l'orientació
       function handleOrientation(event) {
         if (event.alpha !== null) {
-          deviceOrientation = event.alpha; // 0-360 graus (0 = Nord)
+          deviceOrientation = event.alpha;
         }
       }
 
@@ -194,50 +195,62 @@
         camera = new THREE.PerspectiveCamera(
           70,
           window.innerWidth / window.innerHeight,
-          0.01,
+          0.1,
           1000
         );
+        camera.position.set(0, 0, 0);
 
-        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer = new THREE.WebGLRenderer({ 
+          antialias: true, 
+          alpha: true // Fons transparent per veure el vídeo
+        });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0); // Transparent
         document.body.appendChild(renderer.domElement);
 
-        // Ajustar aspecte del vídeo segons dimensions reals
-        videoTexture = new THREE.VideoTexture(video);
-        const videoAspect = video.videoWidth / video.videoHeight;
-        const screenAspect = window.innerWidth / window.innerHeight;
-        
-        let planeWidth, planeHeight;
-        if (screenAspect > videoAspect) {
-          planeWidth = 2 * screenAspect;
-          planeHeight = 2;
-        } else {
-          planeWidth = 2;
-          planeHeight = 2 / videoAspect;
-        }
-        
-        const videoMaterial = new THREE.MeshBasicMaterial({
-          map: videoTexture,
-        });
-        const videoGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-        videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
-        videoMesh.material.depthTest = false;
-        videoMesh.material.depthWrite = false;
-        videoMesh.position.z = -1;
-        scene.add(videoMesh);
+        // Il·luminació millorada per iPhone
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambientLight);
 
-        const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-        scene.add(light);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 7.5);
+        scene.add(directionalLight);
 
+        const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        scene.add(hemisphereLight);
+
+        // Carregar model GLB
         const loader = new GLTFLoader();
         loader.load(
           "test.glb",
           (gltf) => {
             model = gltf.scene;
-            model.scale.set(5, 5, 5); // Escala 5x més gran
-            model.position.set(0, 0, 0); // Posició inicial
+            
+            // Posicionar l'objecte DAVANT de la càmera per defecte
+            model.position.set(0, 0, -10); // 10 metres davant
+            model.scale.set(2, 2, 2);
+            
+            // Assegurar que el model té materials visibles
+            model.traverse((child) => {
+              if (child.isMesh) {
+                // Forçar que el material sigui visible
+                child.material.side = THREE.DoubleSide;
+                child.material.needsUpdate = true;
+                
+                // Si no té material, afegir-ne un de bàsic
+                if (!child.material) {
+                  child.material = new THREE.MeshStandardMaterial({
+                    color: 0xff0000,
+                    side: THREE.DoubleSide
+                  });
+                }
+              }
+            });
+            
             scene.add(model);
-            console.log("✅ Model GLB carregat correctament");
+            console.log("✅ Model GLB carregat i posicionat");
+            console.log("📦 Posició model:", model.position);
+            console.log("📏 Escala model:", model.scale);
           },
           (progress) => {
             const percent = (progress.loaded / progress.total) * 100;
@@ -256,24 +269,6 @@
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        
-        // Reajustar aspecte del vídeo
-        if (video && videoMesh) {
-          const videoAspect = video.videoWidth / video.videoHeight;
-          const screenAspect = window.innerWidth / window.innerHeight;
-          
-          let planeWidth, planeHeight;
-          if (screenAspect > videoAspect) {
-            planeWidth = 2 * screenAspect;
-            planeHeight = 2;
-          } else {
-            planeWidth = 2;
-            planeHeight = 2 / videoAspect;
-          }
-          
-          videoMesh.geometry.dispose();
-          videoMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-        }
       }
 
       // Converteix lat/lon a metres respecte a l'usuari
@@ -297,36 +292,38 @@
             targetLat,
             targetLon
           );
+          
+          // Posicionar l'objecte segons GPS
           model.position.x = meters.x;
           model.position.z = -meters.z;
+          model.position.y = 0; // A nivell del terra
 
           const distance = Math.sqrt(meters.x ** 2 + meters.z ** 2);
           model.visible = distance <= visibilityDistance;
 
-          // Calcular angle absolut cap a l'objecte (bearing) en graus
+          // Calcular angle cap a l'objecte
           let bearing = Math.atan2(meters.x, meters.z) * (180 / Math.PI);
-          bearing = normalizeAngle(bearing); // Normalitzar a 0-360
+          bearing = normalizeAngle(bearing);
 
-          // Normalitzar deviceOrientation també
           const normalizedOrientation = normalizeAngle(deviceOrientation);
-
-          // Calcular angle relatiu
           let relativeAngle = bearing - normalizedOrientation;
           
-          // Ajustar per evitar salts (mantenir en rang -180 a 180)
           if (relativeAngle > 180) relativeAngle -= 360;
           if (relativeAngle < -180) relativeAngle += 360;
 
-          // Informació de debug millorada
+          // Informació de debug
           const accuracy = userPosition.accuracy ? userPosition.accuracy.toFixed(1) : 'N/A';
           info.innerHTML = model.visible
-            ? `✅ <strong>Objecte visible!</strong><br>Distància: ${Math.round(distance)} m`
+            ? `✅ <strong>Objecte visible!</strong><br>` +
+              `📍 Distància: ${Math.round(distance)} m<br>` +
+              `📦 Posició: x=${meters.x.toFixed(1)}, z=${(-meters.z).toFixed(1)}`
             : `📍 Distància: ${Math.round(distance)} m (apropa't)<br>` +
               `🧭 Orientació: ${Math.round(normalizedOrientation)}°<br>` +
               `🎯 Direcció objecte: ${Math.round(bearing)}°<br>` +
-              `📡 Precisió GPS: ±${accuracy} m`;
+              `📡 Precisió GPS: ±${accuracy} m<br>` +
+              `📦 Pos. objecte: x=${meters.x.toFixed(1)}, z=${(-meters.z).toFixed(1)}`;
 
-          // Aplicar rotació correcta a l'indicador (ara sense doble centrat)
+          // Indicador
           indicator.style.transform = `translate(-50%, -50%) rotate(${relativeAngle}deg)`;
           indicator.style.display = model.visible ? "none" : "block";
         }
