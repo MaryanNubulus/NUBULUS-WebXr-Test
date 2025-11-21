@@ -32,18 +32,7 @@
         font-size: 12px;
         max-width: 90%;
       }
-      #indicator {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 50px;
-        height: 50px;
-        z-index: 100;
-        color: #00ff00;
-        font-size: 40px;
-        text-align: center;
-        pointer-events: none;
-      }
+      /* Indicador eliminat - ja no és necessari */
       .btn {
         position: absolute;
         left: 50%;
@@ -76,7 +65,6 @@
   <body>
     <video id="videoBackground" autoplay playsinline muted></video>
     <div id="info">Prem els botons per activar AR</div>
-    <div id="indicator">⬆️</div>
     <button id="geoBtn" class="btn">Activa Geolocalització</button>
     <button id="camBtn" class="btn">Activa Càmera</button>
 
@@ -95,20 +83,11 @@
       
       let scene, camera, renderer, model;
       let userPosition = null;
-      let deviceOrientation = 0;
       const targetLat = 41.631736995249575;
       const targetLon = 0.7782826945720215;
-      const visibilityDistance = 20; // metres
-
-      // Funció per normalitzar angles a rang 0-360
-      function normalizeAngle(angle) {
-        angle = angle % 360;
-        if (angle < 0) angle += 360;
-        return angle;
-      }
+      const visibilityDistance = 50; // metres (augmentat per millor testing)
 
       const info = document.getElementById("info");
-      const indicator = document.getElementById("indicator");
       const geoBtn = document.getElementById("geoBtn");
       const camBtn = document.getElementById("camBtn");
       const videoElement = document.getElementById("videoBackground");
@@ -150,7 +129,6 @@
           });
           videoElement.srcObject = stream;
 
-          await initOrientation();
           info.innerText = "✅ AR iniciada";
 
           initAR();
@@ -161,34 +139,7 @@
         }
       });
 
-      // --- Sensor d'orientació ---
-      async function initOrientation() {
-        if (
-          typeof DeviceOrientationEvent !== "undefined" &&
-          typeof DeviceOrientationEvent.requestPermission === "function"
-        ) {
-          try {
-            const permission = await DeviceOrientationEvent.requestPermission();
-            if (permission === "granted") {
-              window.addEventListener("deviceorientation", handleOrientation);
-              console.log("✅ Sensor d'orientació activat");
-            } else {
-              info.innerText += " (Orientació denegada)";
-            }
-          } catch (err) {
-            console.error("Error permisos orientació:", err);
-          }
-        } else {
-          window.addEventListener("deviceorientation", handleOrientation);
-          console.log("✅ Sensor d'orientació activat");
-        }
-      }
-
-      function handleOrientation(event) {
-        if (event.alpha !== null) {
-          deviceOrientation = event.alpha;
-        }
-      }
+      // Sensor d'orientació eliminat - ja no és necessari
 
       function initAR() {
         scene = new THREE.Scene();
@@ -293,39 +244,28 @@
             targetLon
           );
           
-          // Posicionar l'objecte segons GPS
-          model.position.x = meters.x;
-          model.position.z = -meters.z;
-          model.position.y = 0; // A nivell del terra
-
+          // Calcular distància real total
           const distance = Math.sqrt(meters.x ** 2 + meters.z ** 2);
+          
+          // Posicionar l'objecte SEMPRE centrat davant del dispositiu
+          // Només varia la distància (eix Z)
+          model.position.x = 0;
+          model.position.y = 0;
+          model.position.z = -distance; // Negatiu perquè està davant
+          
           model.visible = distance <= visibilityDistance;
 
-          // Calcular angle cap a l'objecte
-          let bearing = Math.atan2(meters.x, meters.z) * (180 / Math.PI);
-          bearing = normalizeAngle(bearing);
-
-          const normalizedOrientation = normalizeAngle(deviceOrientation);
-          let relativeAngle = bearing - normalizedOrientation;
-          
-          if (relativeAngle > 180) relativeAngle -= 360;
-          if (relativeAngle < -180) relativeAngle += 360;
-
-          // Informació de debug
+          // Informació de debug simplificada
           const accuracy = userPosition.accuracy ? userPosition.accuracy.toFixed(1) : 'N/A';
           info.innerHTML = model.visible
             ? `✅ <strong>Objecte visible!</strong><br>` +
               `📍 Distància: ${Math.round(distance)} m<br>` +
-              `📦 Posició: x=${meters.x.toFixed(1)}, z=${(-meters.z).toFixed(1)}`
-            : `📍 Distància: ${Math.round(distance)} m (apropa't)<br>` +
-              `🧭 Orientació: ${Math.round(normalizedOrientation)}°<br>` +
-              `🎯 Direcció objecte: ${Math.round(bearing)}°<br>` +
+              `📦 Posició: (0, 0, ${-distance.toFixed(1)})<br>` +
+              `� Precisió GPS: ±${accuracy} m`
+            : `📍 Distància: ${Math.round(distance)} m<br>` +
+              `⚠️ Fora de rang (màx ${visibilityDistance}m)<br>` +
               `📡 Precisió GPS: ±${accuracy} m<br>` +
-              `📦 Pos. objecte: x=${meters.x.toFixed(1)}, z=${(-meters.z).toFixed(1)}`;
-
-          // Indicador
-          indicator.style.transform = `translate(-50%, -50%) rotate(${relativeAngle}deg)`;
-          indicator.style.display = model.visible ? "none" : "block";
+              `� Apropa't per veure l'objecte`;
         }
 
         renderer.render(scene, camera);
