@@ -1,7 +1,7 @@
-import { ARScene } from './ARScene.js';
-import { CameraManager } from './CameraManager.js';
-import { GeolocationManager } from './GeolocationManager.js';
-import { DeviceOrientationManager } from './DeviceOrientationManager.js';
+import { ARScene } from "./ARScene.js";
+import { CameraManager } from "./CameraManager.js";
+import { GeolocationManager } from "./GeolocationManager.js";
+import { DeviceOrientationManager } from "./DeviceOrientationManager.js";
 
 /**
  * Aplicació principal d'AR Geolocalitzada
@@ -29,6 +29,7 @@ class ARApp {
 
     // Estat
     this.isRunning = false;
+    this.gpsUpdateInterval = null; // Interval per actualitzacions GPS
 
     this.init();
   }
@@ -75,11 +76,14 @@ class ARApp {
       this.arScene.init();
 
       // Inicialitzar gestor d'orientació
-      this.orientationManager = new DeviceOrientationManager(this.arScene.getCamera());
+      this.orientationManager = new DeviceOrientationManager(
+        this.arScene.getCamera()
+      );
       const orientationGranted = await this.orientationManager.init();
 
       if (!orientationGranted) {
-        this.info.innerText = "⚠️ Permís d'orientació denegat - l'AR pot no funcionar correctament";
+        this.info.innerText =
+          "⚠️ Permís d'orientació denegat - l'AR pot no funcionar correctament";
       } else {
         this.info.innerText = "✅ AR iniciada - Mou el dispositiu";
       }
@@ -100,10 +104,10 @@ class ARApp {
         }
       );
 
-      // Iniciar bucle d'animació
+      // Iniciar bucles d'actualització
       this.isRunning = true;
-      this.animate();
-
+      this.startRenderLoop();
+      this.startGPSUpdateLoop();
     } catch (err) {
       this.info.innerText = "Error: " + err.message;
       console.error(err);
@@ -111,45 +115,62 @@ class ARApp {
   }
 
   /**
-   * Bucle d'animació principal
+   * Bucle de renderitzat (60 FPS)
+   * Només actualitza l'orientació i renderitza l'escena
    */
-  animate() {
-    if (!this.isRunning) return;
+  startRenderLoop() {
+    const render = () => {
+      if (!this.isRunning) return;
 
-    requestAnimationFrame(() => this.animate());
+      requestAnimationFrame(render);
 
-    // Actualitzar orientació de la càmera
-    if (this.orientationManager) {
-      this.orientationManager.update();
-    }
+      // Actualitzar orientació de la càmera (necessita actualitzar-se a 60 FPS per fluïdesa)
+      if (this.orientationManager) {
+        this.orientationManager.update();
+      }
 
-    // Actualitzar posició del model segons GPS
-    const userPos = this.geoManager.getUserPosition();
-    const model = this.arScene.getModel();
+      // Renderitzar escena
+      this.arScene.render();
+    };
 
-    if (userPos && model) {
-      const meters = this.geoManager.latLonToMeters(
-        userPos.latitude,
-        userPos.longitude,
-        this.targetLat,
-        this.targetLon
-      );
+    render();
+  }
 
-      const distance = Math.sqrt(meters.x ** 2 + meters.z ** 2);
-      const visible = distance <= this.visibilityDistance;
+  /**
+   * Bucle d'actualitzacions GPS (1 vegada per segon)
+   * Actualitza posició del model, indicadors i informació
+   */
+  startGPSUpdateLoop() {
+    const updateGPS = () => {
+      // Actualitzar posició del model segons GPS
+      const userPos = this.geoManager.getUserPosition();
+      const model = this.arScene.getModel();
 
-      // Actualitzar posició del model
-      this.arScene.updateModelPosition(distance, visible);
+      if (userPos && model) {
+        const meters = this.geoManager.latLonToMeters(
+          userPos.latitude,
+          userPos.longitude,
+          this.targetLat,
+          this.targetLon
+        );
 
-      // Actualitzar indicador de direcció
-      this.updateDirectionIndicator(distance, visible);
+        const distance = Math.sqrt(meters.x ** 2 + meters.z ** 2);
+        const visible = distance <= this.visibilityDistance;
 
-      // Actualitzar informació de debug
-      this.updateInfo(distance, visible, userPos.accuracy);
-    }
+        // Actualitzar posició del model
+        this.arScene.updateModelPosition(distance, visible);
 
-    // Renderitzar escena
-    this.arScene.render();
+        // Actualitzar indicador de direcció
+        this.updateDirectionIndicator(distance, visible);
+
+        // Actualitzar informació de debug
+        this.updateInfo(distance, visible, userPos.accuracy);
+      }
+    };
+
+    // Executar immediatament i després cada segon
+    updateGPS();
+    this.gpsUpdateInterval = setInterval(updateGPS, 1000);
   }
 
   /**
@@ -160,26 +181,29 @@ class ARApp {
 
     // Mostrar només si l'objecte NO és visible (està fora de rang)
     if (visible) {
-      this.directionIndicator.style.display = 'none';
+      this.directionIndicator.style.display = "none";
       return;
     }
 
-    this.directionIndicator.style.display = 'block';
+    this.directionIndicator.style.display = "block";
 
     // Calcular bearing cap a l'objectiu
-    const bearing = this.geoManager.getBearingToTarget(this.targetLat, this.targetLon);
-    
+    const bearing = this.geoManager.getBearingToTarget(
+      this.targetLat,
+      this.targetLon
+    );
+
     if (bearing !== null && this.orientationManager) {
       // Obtenir l'orientació actual del dispositiu (alpha = compass heading)
-      const deviceHeading = this.orientationManager.deviceOrientation.alpha || 0;
-      
+      const deviceHeading =
+        this.orientationManager.deviceOrientation.alpha || 0;
+
       // Calcular l'angle relatiu (diferència entre on apunta el dispositiu i on està l'objectiu)
       const relativeAngle = bearing - deviceHeading;
-      
+
       // Rotar la fletxa
-      this.directionIndicator.style.transform = 
-        `translateX(-50%) rotate(${relativeAngle}deg)`;
-      
+      this.directionIndicator.style.transform = `translateX(-50%) rotate(${relativeAngle}deg)`;
+
       // Actualitzar etiqueta de distància
       this.distanceLabel.textContent = `${Math.round(distance)} m`;
     }
@@ -189,25 +213,42 @@ class ARApp {
    * Actualitza la informació de debug
    */
   updateInfo(distance, visible, accuracy) {
-    const accuracyText = accuracy ? accuracy.toFixed(1) : 'N/A';
+    const accuracyText = accuracy ? accuracy.toFixed(1) : "N/A";
 
     if (visible) {
-      this.info.innerHTML = 
+      this.info.innerHTML =
         `✅ <strong>Objecte visible!</strong><br>` +
         `📍 Distància: ${Math.round(distance)} m<br>` +
         `📦 Posició: (0, 0, ${-distance.toFixed(1)})<br>` +
         `📡 Precisió GPS: ±${accuracyText} m`;
     } else {
-      this.info.innerHTML = 
+      this.info.innerHTML =
         `📍 Distància: ${Math.round(distance)} m<br>` +
         `⚠️ Fora de rang (màx ${this.visibilityDistance}m)<br>` +
         `📡 Precisió GPS: ±${accuracyText} m<br>` +
         `👣 Apropa't per veure l'objecte`;
     }
   }
+
+  /**
+   * Netejar recursos quan es tanca l'aplicació
+   */
+  destroy() {
+    this.isRunning = false;
+
+    // Netejar interval GPS
+    if (this.gpsUpdateInterval) {
+      clearInterval(this.gpsUpdateInterval);
+      this.gpsUpdateInterval = null;
+    }
+
+    // Netejar altres recursos si cal
+    this.geoManager.stopTracking();
+    this.cameraManager.stop();
+  }
 }
 
 // Iniciar l'aplicació quan el DOM estigui carregat
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   new ARApp();
 });

@@ -1,8 +1,0 @@
-# Targets Directory
-
-Directori per a MindAR image targets (.mind).
-
-Posa els teus fitxers .mind aquí.
-
-Per generar fitxers .mind, utilitza el MindAR Image Compiler:
-https://hiukim.github.io/mind-ar-js-doc/tools/compile
