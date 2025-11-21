@@ -27,8 +27,6 @@
         left: 50%;
         width: 50px;
         height: 50px;
-        margin-left: -25px;
-        margin-top: -25px;
         z-index: 100;
         color: white;
         font-size: 40px;
@@ -76,12 +74,19 @@
     <script type="module">
       import * as THREE from "three";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-      let scene, camera, renderer, model, video, videoTexture;
+      let scene, camera, renderer, model, video, videoTexture, videoMesh;
       let userPosition = null;
       let deviceOrientation = 0; // Orientació del dispositiu (alpha)
       const targetLat = 41.631736995249575;
       const targetLon = 0.7782826945720215;
       const visibilityDistance = 20; // metres
+
+      // Funció per normalitzar angles a rang 0-360
+      function normalizeAngle(angle) {
+        angle = angle % 360;
+        if (angle < 0) angle += 360;
+        return angle;
+      }
 
       const info = document.getElementById("info");
       const indicator = document.getElementById("indicator");
@@ -133,6 +138,11 @@
             audio: false,
           });
           video.srcObject = stream;
+
+          // Esperar que el vídeo estigui llest per obtenir dimensions
+          await new Promise((resolve) => {
+            video.addEventListener('loadedmetadata', resolve, { once: true });
+          });
 
           // Iniciar sensor d'orientació (també UNA VEGADA)
           await initOrientation();
@@ -192,12 +202,25 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // Ajustar aspecte del vídeo segons dimensions reals
         videoTexture = new THREE.VideoTexture(video);
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const screenAspect = window.innerWidth / window.innerHeight;
+        
+        let planeWidth, planeHeight;
+        if (screenAspect > videoAspect) {
+          planeWidth = 2 * screenAspect;
+          planeHeight = 2;
+        } else {
+          planeWidth = 2;
+          planeHeight = 2 / videoAspect;
+        }
+        
         const videoMaterial = new THREE.MeshBasicMaterial({
           map: videoTexture,
         });
-        const videoGeometry = new THREE.PlaneGeometry(2, 2);
-        const videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
+        const videoGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+        videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
         videoMesh.material.depthTest = false;
         videoMesh.material.depthWrite = false;
         videoMesh.position.z = -1;
@@ -207,12 +230,24 @@
         scene.add(light);
 
         const loader = new GLTFLoader();
-        loader.load("test.glb", (gltf) => {
-          model = gltf.scene;
-          model.scale.set(5, 5, 5); // Escala 5x més gran
-          model.position.set(0, 0, 0); // Posició inicial
-          scene.add(model);
-        });
+        loader.load(
+          "test.glb",
+          (gltf) => {
+            model = gltf.scene;
+            model.scale.set(5, 5, 5); // Escala 5x més gran
+            model.position.set(0, 0, 0); // Posició inicial
+            scene.add(model);
+            console.log("✅ Model GLB carregat correctament");
+          },
+          (progress) => {
+            const percent = (progress.loaded / progress.total) * 100;
+            console.log(`Carregant model: ${percent.toFixed(0)}%`);
+          },
+          (error) => {
+            console.error("❌ Error carregant model GLB:", error);
+            info.innerText = "Error: No s'ha pogut carregar el model 3D";
+          }
+        );
 
         window.addEventListener("resize", onWindowResize);
       }
@@ -221,6 +256,24 @@
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // Reajustar aspecte del vídeo
+        if (video && videoMesh) {
+          const videoAspect = video.videoWidth / video.videoHeight;
+          const screenAspect = window.innerWidth / window.innerHeight;
+          
+          let planeWidth, planeHeight;
+          if (screenAspect > videoAspect) {
+            planeWidth = 2 * screenAspect;
+            planeHeight = 2;
+          } else {
+            planeWidth = 2;
+            planeHeight = 2 / videoAspect;
+          }
+          
+          videoMesh.geometry.dispose();
+          videoMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+        }
       }
 
       // Converteix lat/lon a metres respecte a l'usuari
@@ -250,18 +303,31 @@
           const distance = Math.sqrt(meters.x ** 2 + meters.z ** 2);
           model.visible = distance <= visibilityDistance;
 
-          info.innerText = model.visible
-            ? "Objecte visible!"
-            : `Mou-te prop de l'objecte... (${Math.round(distance)} m)`;
+          // Calcular angle absolut cap a l'objecte (bearing) en graus
+          let bearing = Math.atan2(meters.x, meters.z) * (180 / Math.PI);
+          bearing = normalizeAngle(bearing); // Normalitzar a 0-360
 
-          // Calcular angle absolut cap a l'objecte (bearing)
-          const bearing = Math.atan2(meters.x, meters.z) * (180 / Math.PI);
+          // Normalitzar deviceOrientation també
+          const normalizedOrientation = normalizeAngle(deviceOrientation);
 
-          // Ajustar amb l'orientació del dispositiu
-          // bearing - deviceOrientation dona l'angle relatiu a on apunta el telèfon
-          const relativeAngle = bearing - deviceOrientation;
+          // Calcular angle relatiu
+          let relativeAngle = bearing - normalizedOrientation;
+          
+          // Ajustar per evitar salts (mantenir en rang -180 a 180)
+          if (relativeAngle > 180) relativeAngle -= 360;
+          if (relativeAngle < -180) relativeAngle += 360;
 
-          indicator.style.transform = `translateX(-50%) translateY(-50%) rotate(${relativeAngle}deg)`;
+          // Informació de debug millorada
+          const accuracy = userPosition.accuracy ? userPosition.accuracy.toFixed(1) : 'N/A';
+          info.innerHTML = model.visible
+            ? `✅ <strong>Objecte visible!</strong><br>Distància: ${Math.round(distance)} m`
+            : `📍 Distància: ${Math.round(distance)} m (apropa't)<br>` +
+              `🧭 Orientació: ${Math.round(normalizedOrientation)}°<br>` +
+              `🎯 Direcció objecte: ${Math.round(bearing)}°<br>` +
+              `📡 Precisió GPS: ±${accuracy} m`;
+
+          // Aplicar rotació correcta a l'indicador (ara sense doble centrat)
+          indicator.style.transform = `translate(-50%, -50%) rotate(${relativeAngle}deg)`;
           indicator.style.display = model.visible ? "none" : "block";
         }
 
