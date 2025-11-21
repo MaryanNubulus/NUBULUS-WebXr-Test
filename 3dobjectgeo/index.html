@@ -80,8 +80,9 @@
     <script type="module">
       import * as THREE from "three";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import { DeviceOrientationControls } from "three/addons/controls/DeviceOrientationControls.js";
       
-      let scene, camera, renderer, model;
+      let scene, camera, renderer, model, controls;
       let userPosition = null;
       const targetLat = 41.631736995249575;
       const targetLon = 0.7782826945720215;
@@ -129,7 +130,21 @@
           });
           videoElement.srcObject = stream;
 
-          info.innerText = "✅ AR iniciada";
+          // Demanar permisos per a DeviceOrientation (necessari per iOS 13+)
+          if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+              const permission = await DeviceOrientationEvent.requestPermission();
+              if (permission === 'granted') {
+                console.log("✅ Permís d'orientació concedit");
+              } else {
+                info.innerText = "⚠️ Permís d'orientació denegat";
+              }
+            } catch (err) {
+              console.error("Error demanant permís d'orientació:", err);
+            }
+          }
+
+          info.innerText = "✅ AR iniciada - Mou el dispositiu";
 
           initAR();
           animate();
@@ -138,8 +153,6 @@
           console.error(err);
         }
       });
-
-      // Sensor d'orientació eliminat - ja no és necessari
 
       function initAR() {
         scene = new THREE.Scene();
@@ -150,6 +163,11 @@
           1000
         );
         camera.position.set(0, 0, 0);
+
+        // Inicialitzar controls d'orientació del dispositiu
+        controls = new DeviceOrientationControls(camera);
+        controls.connect();
+        console.log("✅ Controls d'orientació connectats");
 
         renderer = new THREE.WebGLRenderer({ 
           antialias: true, 
@@ -235,6 +253,11 @@
 
       function animate() {
         requestAnimationFrame(animate);
+
+        // Actualitzar controls d'orientació
+        if (controls) {
+          controls.update();
+        }
 
         if (userPosition && model) {
           const meters = latLonToMeters(
