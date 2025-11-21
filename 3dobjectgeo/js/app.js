@@ -18,6 +18,8 @@ class ARApp {
     this.geoBtn = document.getElementById("geoBtn");
     this.camBtn = document.getElementById("camBtn");
     this.videoElement = document.getElementById("videoBackground");
+    this.directionIndicator = document.getElementById("directionIndicator");
+    this.distanceLabel = document.getElementById("distanceLabel");
 
     // Managers
     this.arScene = new ARScene();
@@ -139,12 +141,48 @@ class ARApp {
       // Actualitzar posició del model
       this.arScene.updateModelPosition(distance, visible);
 
+      // Actualitzar indicador de direcció
+      this.updateDirectionIndicator(distance, visible);
+
       // Actualitzar informació de debug
       this.updateInfo(distance, visible, userPos.accuracy);
     }
 
     // Renderitzar escena
     this.arScene.render();
+  }
+
+  /**
+   * Actualitza l'indicador de direcció
+   */
+  updateDirectionIndicator(distance, visible) {
+    if (!this.directionIndicator) return;
+
+    // Mostrar només si l'objecte NO és visible (està fora de rang)
+    if (visible) {
+      this.directionIndicator.style.display = 'none';
+      return;
+    }
+
+    this.directionIndicator.style.display = 'block';
+
+    // Calcular bearing cap a l'objectiu
+    const bearing = this.geoManager.getBearingToTarget(this.targetLat, this.targetLon);
+    
+    if (bearing !== null && this.orientationManager) {
+      // Obtenir l'orientació actual del dispositiu (alpha = compass heading)
+      const deviceHeading = this.orientationManager.deviceOrientation.alpha || 0;
+      
+      // Calcular l'angle relatiu (diferència entre on apunta el dispositiu i on està l'objectiu)
+      const relativeAngle = bearing - deviceHeading;
+      
+      // Rotar la fletxa
+      this.directionIndicator.style.transform = 
+        `translateX(-50%) rotate(${relativeAngle}deg)`;
+      
+      // Actualitzar etiqueta de distància
+      this.distanceLabel.textContent = `${Math.round(distance)} m`;
+    }
   }
 
   /**

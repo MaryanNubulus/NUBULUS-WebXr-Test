@@ -12,6 +12,25 @@
     <button id="geoBtn" class="btn">Activa Geolocalització</button>
     <button id="camBtn" class="btn">Activa Càmera</button>
 
+    <!-- Indicador de direcció -->
+    <div id="directionIndicator" style="display: none;">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <circle cx="40" cy="40" r="35" fill="rgba(0, 123, 255, 0.2)" stroke="#007bff" stroke-width="2"/>
+        <path d="M 40 10 L 50 35 L 40 30 L 30 35 Z" fill="#007bff" filter="url(#glow)"/>
+        <text x="40" y="75" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold">OBJECTIU</text>
+      </svg>
+      <div id="distanceLabel"></div>
+    </div>
+
     <script type="importmap">
       {
         "imports": {
