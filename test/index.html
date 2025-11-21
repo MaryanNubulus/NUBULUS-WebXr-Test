@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <title>NUBULUS WebXR</title>
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="./styles/main.css">
+  
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
+  
+  <!-- MindAR -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-three.prod.js"></script>
+</head>
+<body>
+  <!-- AR Container -->
+  <div id="ar-container"></div>
+
+  <!-- Experience Selector -->
+  <div id="experience-selector" class="experience-selector">
+    <div class="selector-container">
+      <h1>NUBULUS WebXR</h1>
+      <p class="subtitle">Selecciona una experiència</p>
+
+      <div class="experience-grid">
+        <!-- Image Tracking Experiences -->
+        <div class="experience-category">
+          <h2>Image Tracking</h2>
+          
+          <button class="experience-btn" data-experience="belloc">
+            <div class="btn-icon">📱</div>
+            <div class="btn-title">Belloc</div>
+            <div class="btn-description">Custom shape geometry amb vídeo</div>
+          </button>
+
+          <button class="experience-btn" data-experience="peixos">
+            <div class="btn-icon">🐠</div>
+            <div class="btn-title">Peixos</div>
+            <div class="btn-description">Plane geometry amb vídeo</div>
+          </button>
+
+          <button class="experience-btn" data-experience="penelles">
+            <div class="btn-icon">🏛️</div>
+            <div class="btn-title">Penelles</div>
+            <div class="btn-description">Plane geometry gran amb vídeo</div>
+          </button>
+        </div>
+
+        <!-- Geolocation Experiences -->
+        <div class="experience-category">
+          <h2>Geolocation</h2>
+          
+          <button class="experience-btn" data-experience="geolocation">
+            <div class="btn-icon">📍</div>
+            <div class="btn-title">Geolocalització</div>
+            <div class="btn-description">GPS i orientació amb geofencing</div>
+          </button>
+
+          <button class="experience-btn" data-experience="object3dgeo">
+            <div class="btn-icon">🎯</div>
+            <div class="btn-title">3D Geo Object</div>
+            <div class="btn-description">Models 3D posicionats per GPS</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>v1.0.0 | NUBULUS Team</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Back Button (hidden by default) -->
+  <button id="back-btn" class="back-btn" style="display: none;">
+    ← Back
+  </button>
+
+  <!-- Main Script (ES6 Module) -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

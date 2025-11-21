@@ -1,0 +1,30 @@
+{
+  "name": "nubulus-webxr",
+  "version": "1.0.0",
+  "description": "NUBULUS WebXR - Projecte modular per experiències de realitat augmentada",
+  "main": "src/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve -l 8080",
+    "start": "npx serve -l 8080",
+    "build": "echo 'No build needed - using ES modules'",
+    "test": "echo 'No tests configured yet'"
+  },
+  "keywords": [
+    "webxr",
+    "ar",
+    "augmented-reality",
+    "three.js",
+    "mindar",
+    "geolocation"
+  ],
+  "author": "NUBULUS Team",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "serve": "^14.2.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
